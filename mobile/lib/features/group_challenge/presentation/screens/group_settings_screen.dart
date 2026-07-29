@@ -1,0 +1,188 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+
+import '../../../../core/providers/providers.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/shared_widgets.dart';
+import 'group_home_screen.dart';
+
+class GroupSettingsScreen extends ConsumerStatefulWidget {
+  const GroupSettingsScreen({super.key, required this.groupId});
+
+  final String groupId;
+
+  @override
+  ConsumerState<GroupSettingsScreen> createState() => _GroupSettingsScreenState();
+}
+
+class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
+  late TextEditingController _nameCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveName(Map<String, dynamic> group) async {
+    if (_nameCtrl.text.trim().isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(apiRepositoryProvider).updateGroup(widget.groupId, {
+        'name': _nameCtrl.text.trim(),
+      });
+      ref.invalidate(groupDashboardProvider(widget.groupId));
+      ref.invalidate(groupsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Group updated')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _removeMember(String memberId, String name) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove member?'),
+        content: Text('Remove $name from this group?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await ref.read(apiRepositoryProvider).removeGroupMember(widget.groupId, memberId);
+      ref.invalidate(groupDashboardProvider(widget.groupId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$name removed')));
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
+    final group = extra?['group'] as Map<String, dynamic>? ?? {};
+    final members = extra?['members'] as List<dynamic>? ?? [];
+    final invite = group['invite_code'] as String? ?? '';
+
+    if (_nameCtrl.text.isEmpty && group['name'] != null) {
+      _nameCtrl.text = group['name'] as String;
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Group Settings')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text('Group Name', style: TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _nameCtrl,
+            decoration: const InputDecoration(hintText: 'ILM MODE S5'),
+          ),
+          const SizedBox(height: 12),
+          PrimaryButton(
+            label: 'Save changes',
+            isLoading: _saving,
+            onPressed: () => _saveName(group),
+          ),
+          const SizedBox(height: 28),
+          const Text('Invite Members', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+          const SizedBox(height: 12),
+          SoftCard(
+            child: Column(
+              children: [
+                QrImageView(data: 'ilmmode://join/$invite', size: 140),
+                const SizedBox(height: 12),
+                Text(
+                  invite,
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 28, letterSpacing: 3, color: AppColors.navy),
+                ),
+                const SizedBox(height: 12),
+                PrimaryButton(
+                  label: 'Copy invite code',
+                  outlined: true,
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: invite));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied!')));
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          const Text('Participants', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+          const SizedBox(height: 12),
+          ...members.map((m) {
+            final map = m as Map<String, dynamic>;
+            final isLeader = map['role'] == 'leader';
+            final isYou = map['is_you'] == true;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SoftCard(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      child: Text((map['full_name'] as String? ?? '?').substring(0, 1)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${map['full_name']}${isYou ? ' (you)' : ''}',
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          if (isLeader)
+                            const Text('Leader', style: TextStyle(color: AppColors.orange, fontWeight: FontWeight.w700, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    if (!isLeader && !isYou)
+                      IconButton(
+                        icon: const Icon(Icons.person_remove_rounded, color: AppColors.danger),
+                        onPressed: () => _removeMember(
+                          map['user_id'] as String,
+                          map['full_name'] as String? ?? 'Member',
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "en": {
+    "app_name": "21",
+    "tagline": "Build real discipline",
+    "login": "Login",
+    "signup": "Sign Up",
+    "start_free": "Start Free Challenge",
+    "challenges": "Challenges",
+    "groups": "Groups",
+    "statistics": "Statistics",
+    "profile": "Profile"
+  },
+  "uz": {
+    "app_name": "21",
+    "tagline": "Haqiqiy intizom qurish",
+    "login": "Kirish",
+    "signup": "Ro'yxatdan o'tish",
+    "start_free": "Bepul musobaqani boshlash",
+    "challenges": "Musobaqalar",
+    "groups": "Guruhlar",
+    "statistics": "Statistika",
+    "profile": "Profil"
+  }
+}

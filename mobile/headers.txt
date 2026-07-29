@@ -1,0 +1,21 @@
+HTTP/1.1 302 Found
+Date: Sun, 26 Jul 2026 15:10:38 GMT
+Content-Type: text/plain
+Transfer-Encoding: chunked
+Connection: keep-alive
+Location: https://accounts.google.com/o/oauth2/v2/auth?client_id=161606994491-717t7tspvalo67m45plepdoj0v1otdh4.apps.googleusercontent.com&redirect_to=http%3A%2F%2F127.0.0.1%3A8090%2Fauth%2Fcallback&redirect_uri=https%3A%2F%2Fjnwylgvmvwcbidouxpez.supabase.co%2Fauth%2Fv1%2Fcallback&response_type=code&scope=email+profile&state=361d074c-fc44-458f-bed9-70b40ce98309
+CF-Ray: a214550f3cf5e658-WAW
+CF-Cache-Status: DYNAMIC
+set-cookie: __cf_bm=cicirh_MjVubbLB_GGda716u3zmrGXk9ZCIKP5e4F90-1785078637.955751-1.0.1.1-CH8.29njdMBuW9X9zt86QalLKH9aRd.3sUPXu7kW8RVw7AnxzlRBVnU48LkLvCvXzL19CoeCyvMRNISTRlfsJTuJACovmXMQfXFxPGulPXfvKtmuKneRXTJgXYjrsCbK; HttpOnly; SameSite=None; Secure; Path=/; Domain=supabase.co; Expires=Sun, 26 Jul 2026 15:40:38 GMT
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Vary: Origin, Accept-Encoding
+Content-Security-Policy: default-src 'none'; sandbox
+X-Content-Type-Options: nosniff
+sb-gateway-version: 1
+sb-project-ref: jnwylgvmvwcbidouxpez
+sb-request-id: 019f9efa-6589-7a97-8fe4-0d6384ce85d2
+x-envoy-attempt-count: 1
+x-envoy-upstream-service-time: 5
+alt-svc: h3=":443"; ma=86400
+

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Secrets & local env
+.env
+backend/.env
+mobile/env.json
+mobile/env.android.json
+mobile/env.android.usb.json
+
+# Local databases
+backend/*.db
+backend/*.db-*
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/pubspec.lock
+mobile/**/GeneratedPluginRegistrant.*
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Docker / misc
+pgdata/
+.cursor/
