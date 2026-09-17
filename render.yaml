@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: ilm-mode-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        sync: false
+      - key: INTERNAL_JOB_SECRET
+        sync: false
+      - key: CHALLENGE_PRICE_UZS
+        value: "99000"
+    healthCheckPath: /v1/health
