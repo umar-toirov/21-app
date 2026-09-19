@@ -105,6 +105,11 @@ class ApiRepository {
     return ChallengeModel.fromJson(res.data as Map<String, dynamic>);
   }
 
+  Future<ActiveProgramsModel> getActivePrograms() async {
+    final res = await _dio.get('/challenges/active-all');
+    return ActiveProgramsModel.fromJson(res.data as Map<String, dynamic>);
+  }
+
   Future<List<ChallengeSummaryModel>> listChallenges() async {
     final res = await _dio.get('/challenges');
     return (res.data as List)
@@ -150,13 +155,47 @@ class ApiRepository {
     return GroupModel.fromJson(res.data as Map<String, dynamic>);
   }
 
-  Future<GroupModel> joinGroup(String inviteCode) async {
-    final res = await _dio.post('/groups/join', data: {'invite_code': inviteCode});
+  Future<Map<String, dynamic>> previewGroupInvite(String inviteCode) async {
+    final res = await _dio.get('/groups/preview/${inviteCode.toUpperCase()}');
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<GroupModel> joinGroup(
+    String inviteCode, {
+    List<String>? personalTasks,
+  }) async {
+    final res = await _dio.post('/groups/join', data: {
+      'invite_code': inviteCode,
+      if (personalTasks != null) 'personal_tasks': personalTasks,
+    });
     return GroupModel.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<Map<String, dynamic>> getGroupDashboard(String groupId) async {
     final res = await _dio.get('/groups/$groupId/dashboard');
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getGroupDayRoster(
+    String groupId, {
+    String? date,
+  }) async {
+    final res = await _dio.get(
+      '/groups/$groupId/day-roster',
+      queryParameters: {
+        if (date != null) 'date': date,
+      },
+    );
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> addChallengeTask(
+    String challengeId,
+    String title,
+  ) async {
+    final res = await _dio.post('/challenges/$challengeId/tasks', data: {
+      'title': title,
+    });
     return res.data as Map<String, dynamic>;
   }
 
@@ -235,6 +274,10 @@ final profileProvider = FutureProvider<ProfileModel>((ref) async {
 
 final activeChallengeProvider = FutureProvider<ChallengeModel?>((ref) async {
   return ref.watch(apiRepositoryProvider).getActiveChallenge();
+});
+
+final activeProgramsProvider = FutureProvider<ActiveProgramsModel>((ref) async {
+  return ref.watch(apiRepositoryProvider).getActivePrograms();
 });
 
 final challengesListProvider = FutureProvider<List<ChallengeSummaryModel>>((ref) async {

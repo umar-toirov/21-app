@@ -95,7 +95,7 @@ class ProfileScreen extends ConsumerWidget {
                                   ],
                                 ),
                                 child: Text(
-                                  'LV ${(profile.disciplineScore / 50).floor().clamp(1, 99)}',
+                                  'LV ${(profile.hp / 50).floor().clamp(1, 99)}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 11,
@@ -123,21 +123,21 @@ class ProfileScreen extends ConsumerWidget {
                           children: [
                             _GemStat(
                               icon: Icons.bolt_rounded,
-                              label: 'Score',
-                              value: '${profile.disciplineScore}',
-                              color: AppColors.goldDepth,
-                            ),
-                            _GemStat(
-                              icon: Icons.favorite_rounded,
-                              label: 'HP',
+                              label: 'Points',
                               value: '${profile.hp}',
-                              color: AppColors.hp,
+                              color: AppColors.orange,
                             ),
                             _GemStat(
                               icon: Icons.local_fire_department_rounded,
                               label: 'Streak',
                               value: '${profile.currentStreak}',
-                              color: AppColors.orange,
+                              color: AppColors.orangeDepth,
+                            ),
+                            _GemStat(
+                              icon: Icons.emoji_events_rounded,
+                              label: 'Done',
+                              value: '${profile.challengesCompleted}',
+                              color: AppColors.teal,
                             ),
                           ],
                         ),

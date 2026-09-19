@@ -504,7 +504,7 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const BrandMascot(size: 110)
+            const BrandMascot(size: 110, floating: false)
                 .animate()
                 .fadeIn(duration: 500.ms)
                 .scale(begin: const Offset(0.85, 0.85)),

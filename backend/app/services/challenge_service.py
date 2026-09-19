@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.core.exceptions import AppError, ConflictError, NotFoundError
+from app.core.exceptions import AppError, ConflictError, ForbiddenError, NotFoundError
 from app.core.security import as_utc, utcnow
 from app.models.profile import (
     Badge,
@@ -19,6 +19,7 @@ from app.models.profile import (
     ChallengeStatus,
     ChallengeType,
     Goal,
+    Group,
     HpEvent,
     Payment,
     PaymentStatus,
@@ -62,10 +63,17 @@ class ChallengeService:
         self.db = db
 
     async def get_active_challenge(self, user_id: UUID) -> Challenge | None:
+        """Return the active PERSONAL challenge (legacy / single-active callers)."""
+        return await self.get_active_challenge_by_type(user_id, ChallengeType.INDIVIDUAL)
+
+    async def get_active_challenge_by_type(
+        self, user_id: UUID, challenge_type: ChallengeType
+    ) -> Challenge | None:
         result = await self.db.execute(
             select(Challenge)
             .where(
                 Challenge.user_id == user_id,
+                Challenge.type == challenge_type,
                 Challenge.status.in_([ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY]),
             )
             .options(selectinload(Challenge.tasks), selectinload(Challenge.days))
@@ -78,6 +86,16 @@ class ChallengeService:
         profile = profile_result.scalar_one()
         return await self.sync_calendar_day(profile, challenge)
 
+    async def get_active_programs(self, user_id: UUID) -> dict:
+        personal = await self.get_active_challenge_by_type(user_id, ChallengeType.INDIVIDUAL)
+        group = await self.get_active_challenge_by_type(user_id, ChallengeType.GROUP)
+        profile_result = await self.db.execute(select(Profile).where(Profile.id == user_id))
+        profile = profile_result.scalar_one()
+        return {
+            "personal": await self.build_detail(profile, personal) if personal else None,
+            "group": await self.build_detail(profile, group) if group else None,
+        }
+
     async def create_from_onboarding(self, profile: Profile) -> Challenge:
         data = profile.onboarding_data or {}
         goal_slug = data.get("goal", "other")
@@ -87,6 +105,7 @@ class ChallengeService:
         active_result = await self.db.execute(
             select(Challenge.id).where(
                 Challenge.user_id == profile.id,
+                Challenge.type == ChallengeType.INDIVIDUAL,
                 Challenge.status.in_(
                     [ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY]
                 ),
@@ -94,11 +113,21 @@ class ChallengeService:
         )
         if active_result.scalar_one_or_none():
             raise ConflictError(
-                "Finish or leave your current challenge before starting another one"
+                "Finish or leave your current personal challenge before starting another one"
             )
 
         if len(personal_tasks) < 2:
             raise AppError("VALIDATION", "Select at least 2 personal tasks")
+
+        # Archive any leftover unpaid drafts so a fresh start is always ACTIVE.
+        pending = await self.db.execute(
+            select(Challenge).where(
+                Challenge.user_id == profile.id,
+                Challenge.status == ChallengeStatus.PENDING_PAYMENT,
+            )
+        )
+        for old in pending.scalars().all():
+            old.status = ChallengeStatus.ARCHIVED
 
         existing = await self.db.execute(
             select(func.count())
@@ -119,7 +148,7 @@ class ChallengeService:
             name=challenge_name,
             type=ChallengeType.INDIVIDUAL,
             duration_days=duration,
-            status=ChallengeStatus.ACTIVE if is_first_free else ChallengeStatus.PENDING_PAYMENT,
+            status=ChallengeStatus.ACTIVE,
             start_date=date.today(),
             current_day=1,
             is_first_free=is_first_free,
@@ -175,6 +204,51 @@ class ChallengeService:
         if not day:
             raise NotFoundError("Challenge day")
         return day
+
+    async def add_personal_task(
+        self, profile: Profile, challenge_id: UUID, title: str
+    ) -> Task:
+        clean = (title or "").strip()
+        if not clean:
+            raise AppError("VALIDATION", "Task title is required")
+
+        result = await self.db.execute(
+            select(Challenge)
+            .where(Challenge.id == challenge_id, Challenge.user_id == profile.id)
+            .options(selectinload(Challenge.tasks))
+        )
+        challenge = result.scalar_one_or_none()
+        if not challenge:
+            raise NotFoundError("Challenge")
+        if challenge.type != ChallengeType.GROUP:
+            raise AppError("INVALID", "Only group challenges support adding personal tasks here")
+        if challenge.status not in (ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY):
+            raise AppError("INVALID_STATE", "Challenge is not active")
+        if (challenge.current_day or 0) > 1:
+            raise AppError("LOCKED", "Personal tasks can only be added on Day 1")
+        if not challenge.group_id:
+            raise AppError("INVALID", "Challenge is not linked to a group")
+
+        group_result = await self.db.execute(
+            select(Group).where(Group.id == challenge.group_id)
+        )
+        group = group_result.scalar_one_or_none()
+        if not group:
+            raise NotFoundError("Group")
+        task_mode = getattr(group, "task_mode", None) or "shared"
+        if task_mode != "freedom":
+            raise ForbiddenError("This group uses shared tasks only")
+
+        max_order = max((t.sort_order for t in challenge.tasks), default=-1)
+        task = Task(
+            challenge_id=challenge.id,
+            title=clean,
+            type=TaskType.PERSONAL,
+            sort_order=max_order + 1,
+        )
+        self.db.add(task)
+        await self.db.flush()
+        return task
 
     async def complete_task(
         self, profile: Profile, challenge_id: UUID, task_id: UUID
@@ -480,6 +554,7 @@ class ChallengeService:
             "id": challenge.id,
             "name": challenge.name,
             "type": challenge.type.value,
+            "group_id": challenge.group_id,
             "duration_days": challenge.duration_days,
             "status": challenge.status.value,
             "start_date": challenge.start_date,

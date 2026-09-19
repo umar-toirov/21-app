@@ -77,15 +77,19 @@ class GroupMemberProfileScreen extends ConsumerWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _MiniStat('HP', '${data['hp'] ?? 0}', AppColors.orange),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _MiniStat('Score', '${data['discipline_score'] ?? 0}', AppColors.goldDepth),
+                    child: _MiniStat('Points', '${data['group_points'] ?? 0}', AppColors.orange),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _MiniStat('Streak', '${data['current_streak'] ?? 0}', AppColors.teal),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _MiniStat(
+                      'Done',
+                      '${(challenge['completion_percent'] as num?)?.toStringAsFixed(0) ?? 0}%',
+                      AppColors.navy,
+                    ),
                   ),
                 ],
               ),

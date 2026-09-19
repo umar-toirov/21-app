@@ -4,6 +4,8 @@ Set-Location $PSScriptRoot
 
 # Real Chrome window (not web-server). Disable web security for local API CORS edge cases.
 flutter run -d chrome `
+  --web-hostname=127.0.0.1 `
+  --web-port=5210 `
   --web-browser-flag="--disable-web-security" `
   --web-browser-flag="--user-data-dir=$env:TEMP\ilm-mode-chrome" `
   --dart-define-from-file=env.json

@@ -21,6 +21,14 @@ final groupStatisticsProvider =
   return ref.watch(apiRepositoryProvider).getGroupStatistics(groupId);
 });
 
+final groupDayRosterProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>, ({String groupId, String date})>((ref, args) {
+  return ref.watch(apiRepositoryProvider).getGroupDayRoster(
+        args.groupId,
+        date: args.date,
+      );
+});
+
 class GroupHomeScreen extends ConsumerStatefulWidget {
   const GroupHomeScreen({super.key, required this.groupId});
 
@@ -258,15 +266,26 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
               controller: _tabs,
               children: [
                 _HomeTab(
+                  groupId: widget.groupId,
                   group: group,
                   stats: stats,
                   announcements: announcements,
                   feed: feed,
                   sessions: sessions,
                   isLeader: isLeader,
-                  onCta: () => context.go(AppRoutes.home),
+                  onCta: () async {
+                    final programs = await ref.read(activeProgramsProvider.future);
+                    if (!context.mounted) return;
+                    final groupChallenge = programs.group;
+                    if (groupChallenge != null) {
+                      context.go('/home/challenge/${groupChallenge.id}');
+                    } else {
+                      context.go(AppRoutes.home);
+                    }
+                  },
                   onPostAnnouncement: () => _postAnnouncement(isLeader),
                   onRefresh: () async => ref.invalidate(groupDashboardProvider(widget.groupId)),
+                  onTapMember: _openMember,
                 ),
                 _LeaderboardTab(
                   members: members,
@@ -296,8 +315,9 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
   }
 }
 
-class _HomeTab extends StatelessWidget {
+class _HomeTab extends StatefulWidget {
   const _HomeTab({
+    required this.groupId,
     required this.group,
     required this.stats,
     required this.announcements,
@@ -307,8 +327,10 @@ class _HomeTab extends StatelessWidget {
     required this.onCta,
     required this.onPostAnnouncement,
     required this.onRefresh,
+    required this.onTapMember,
   });
 
+  final String groupId;
   final Map<String, dynamic> group;
   final Map<String, dynamic> stats;
   final List<dynamic> announcements;
@@ -318,36 +340,135 @@ class _HomeTab extends StatelessWidget {
   final VoidCallback onCta;
   final VoidCallback onPostAnnouncement;
   final Future<void> Function() onRefresh;
+  final void Function(String userId) onTapMember;
+
+  @override
+  State<_HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<_HomeTab> {
+  late DateTime _rosterDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _rosterDate = DateTime(now.year, now.month, now.day);
+  }
+
+  Future<void> _pickDate() async {
+    final startsAt = DateTime.tryParse(widget.group['starts_at'] as String? ?? '');
+    final duration = widget.group['duration_days'] as int? ?? 21;
+    final first = startsAt ?? DateTime.now().subtract(const Duration(days: 30));
+    final last = first.add(Duration(days: duration - 1));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _rosterDate,
+      firstDate: first,
+      lastDate: last.isAfter(DateTime.now()) ? DateTime.now() : last,
+    );
+    if (picked != null) {
+      setState(() => _rosterDate = DateTime(picked.year, picked.month, picked.day));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final todayPct = (stats['today_completion_percent'] as num?)?.toDouble() ?? 0;
+    final todayPct = (widget.stats['today_completion_percent'] as num?)?.toDouble() ?? 0;
 
     return RefreshIndicator(
       color: AppColors.orange,
-      onRefresh: onRefresh,
+      onRefresh: widget.onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
         children: [
           GroupHeroCard(
-            name: group['name'] as String? ?? 'Group',
-            currentDay: group['current_day'] as int? ?? 1,
-            durationDays: group['duration_days'] as int? ?? 21,
-            memberCount: group['member_count'] as int? ?? 0,
+            name: widget.group['name'] as String? ?? 'Group',
+            currentDay: widget.group['current_day'] as int? ?? 1,
+            durationDays: widget.group['duration_days'] as int? ?? 21,
+            memberCount: widget.group['member_count'] as int? ?? 0,
             todayCompletionPercent: todayPct,
-            onCta: onCta,
+            onCta: widget.onCta,
           ),
           const SizedBox(height: 24),
-          GroupStatGrid(stats: stats),
+          GroupStatGrid(stats: widget.stats),
           const SizedBox(height: 24),
-          GroupProgressCard(percent: todayPct, stats: stats),
+          GroupProgressCard(percent: todayPct, stats: widget.stats),
+          if (widget.isLeader) ...[
+            const SizedBox(height: 24),
+            _LeaderDayRosterSection(
+              groupId: widget.groupId,
+              date: _rosterDate,
+              onSelectDate: (d) => setState(() => _rosterDate = d),
+              onPickDate: _pickDate,
+              onTapMember: widget.onTapMember,
+            ),
+          ],
           const SizedBox(height: 24),
-          LiveSessionCard(sessions: sessions),
-          if (sessions.isNotEmpty) const SizedBox(height: 24),
-          PinnedAnnouncements(announcements: announcements),
-          if (announcements.any((a) => a['is_pinned'] == true)) const SizedBox(height: 20),
-          GroupActivityFeed(feed: feed),
+          LiveSessionCard(sessions: widget.sessions),
+          if (widget.sessions.isNotEmpty) const SizedBox(height: 24),
+          PinnedAnnouncements(announcements: widget.announcements),
+          if (widget.announcements.any((a) => a['is_pinned'] == true)) const SizedBox(height: 20),
+          GroupActivityFeed(feed: widget.feed),
         ],
+      ),
+    );
+  }
+}
+
+class _LeaderDayRosterSection extends ConsumerWidget {
+  const _LeaderDayRosterSection({
+    required this.groupId,
+    required this.date,
+    required this.onSelectDate,
+    required this.onPickDate,
+    required this.onTapMember,
+  });
+
+  final String groupId;
+  final DateTime date;
+  final void Function(DateTime date) onSelectDate;
+  final VoidCallback onPickDate;
+  final void Function(String userId) onTapMember;
+
+  String _ymd(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dateKey = _ymd(date);
+    final async = ref.watch(groupDayRosterProvider((groupId: groupId, date: dateKey)));
+
+    return async.when(
+      loading: () => const SoftCard(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+        ),
+      ),
+      error: (e, _) => SoftCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Member actions', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+            const SizedBox(height: 8),
+            Text(
+              'Could not load roster: $e',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            TextButton(
+              onPressed: () => ref.invalidate(groupDayRosterProvider((groupId: groupId, date: dateKey))),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+      data: (roster) => GroupMemberActionsRoster(
+        roster: roster,
+        selectedDate: date,
+        onSelectDate: onSelectDate,
+        onPickDate: onPickDate,
+        onTapMember: onTapMember,
       ),
     );
   }
@@ -378,7 +499,7 @@ class _LeaderboardTab extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Ranked by discipline score, streak, and HP',
+            'Ranked by group points from this program’s tasks',
             style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
@@ -432,9 +553,9 @@ class _StatisticsTab extends ConsumerWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _StatHighlight(
-                    label: 'Avg HP',
-                    value: '${stats['average_hp'] ?? 0}',
-                    icon: Icons.favorite_rounded,
+                    label: 'Avg Points',
+                    value: '${stats['average_group_points'] ?? stats['average_hp'] ?? 0}',
+                    icon: Icons.bolt_rounded,
                     color: AppColors.orange,
                   ),
                 ),
@@ -502,7 +623,7 @@ class _StatisticsTab extends ConsumerWidget {
               _PersonHighlight(
                 title: 'Top Performer',
                 name: (stats['top_performer'] as Map)['name'] as String? ?? '',
-                detail: 'Score ${(stats['top_performer'] as Map)['score']}',
+                detail: '${(stats['top_performer'] as Map)['score'] ?? 0} pts',
                 icon: Icons.emoji_events_rounded,
                 color: AppColors.gold,
               ),

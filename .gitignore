@@ -10,6 +10,7 @@ backend/.env
 mobile/env.json
 mobile/env.android.json
 mobile/env.android.usb.json
+mobile/env.android.phone.json
 
 # Local databases
 backend/*.db

@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/models.dart';
 import '../theme/app_theme.dart';
+import 'shared_widgets.dart';
 
 /// Glossy 3D-style icon bubble used across the mockup.
 class GlossyIcon extends StatelessWidget {
@@ -273,7 +274,7 @@ class IlmChallengeCard extends StatelessWidget {
   }
 }
 
-/// Home greeting hero (photo 4) with mountain asset on the right.
+/// Home greeting hero with brand mark (no mountain asset).
 class HomeGreetingHero extends StatelessWidget {
   const HomeGreetingHero({
     super.key,
@@ -300,7 +301,7 @@ class HomeGreetingHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '$_greeting, $first! 👋',
+                '$_greeting, $first',
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w700,
@@ -308,15 +309,15 @@ class HomeGreetingHero extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Text.rich(
+              const Text.rich(
                 TextSpan(
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 26,
                     height: 1.2,
                     color: AppColors.textPrimary,
                   ),
-                  children: const [
+                  children: [
                     TextSpan(text: 'Discipline today,\n'),
                     TextSpan(text: 'success', style: TextStyle(color: AppColors.navy)),
                     TextSpan(text: ' tomorrow.'),
@@ -336,45 +337,89 @@ class HomeGreetingHero extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        Container(
-          width: 128,
-          height: 128,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF4F7FF), Color(0xFFE4ECFF)],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.navy.withValues(alpha: 0.08),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.all(7),
-            child: Image.asset(
-              'assets/brand/mountain.png',
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-            )
-                .animate()
-                .fadeIn(duration: 700.ms, curve: Curves.easeOut)
-                .scale(
-                  begin: const Offset(0.94, 0.94),
-                  end: const Offset(1, 1),
-                  duration: 900.ms,
-                  curve: Curves.easeOutCubic,
-                ),
-          ),
-        ),
+        const SizedBox(width: 10),
+        const _HomeBrandBadge(),
       ],
     ).animate().fadeIn(duration: 450.ms).slideY(begin: 0.06, end: 0);
+  }
+}
+
+class _HomeBrandBadge extends StatelessWidget {
+  const _HomeBrandBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 118,
+      height: 118,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFF4EC),
+            Color(0xFFFFE0D0),
+            Color(0xFFFFF8F2),
+          ],
+          stops: [0, 0.55, 1],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppColors.orange.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.orange.withValues(alpha: 0.16),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.navy,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                '21',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          ),
+          const BrandLogo(size: 64, variant: BrandLogoVariant.gold)
+              .animate()
+              .fadeIn(duration: 500.ms)
+              .scale(
+                begin: const Offset(0.9, 0.9),
+                end: const Offset(1, 1),
+                duration: 650.ms,
+                curve: Curves.easeOutCubic,
+              ),
+          Positioned(
+            bottom: 12,
+            child: Text(
+              'ILM HUB',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 10,
+                letterSpacing: 1.2,
+                color: AppColors.orangeDepth.withValues(alpha: 0.85),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -513,7 +558,7 @@ class StreakCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            GlossyIcon(
+            const GlossyIcon(
               icon: Icons.local_fire_department_rounded,
               color: AppColors.orange,
               size: 48,

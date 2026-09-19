@@ -28,12 +28,14 @@ from app.schemas.schemas import (
     CertificateResponse,
     ChallengeDetailResponse,
     ChallengeResponse,
+    ChallengeTaskCreate,
     CompleteTaskRequest,
     CompleteTaskResponse,
     DeviceTokenCreate,
     GoalResponse,
     GroupCreate,
     GroupDashboardResponse,
+    GroupInvitePreview,
     GroupJoin,
     GroupResponse,
     GroupSessionCreate,
@@ -200,6 +202,15 @@ async def get_active_challenge(
     return await service.build_detail(profile, challenge)
 
 
+@router.get("/challenges/active-all")
+async def get_active_programs(
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    service = ChallengeService(db)
+    return await service.get_active_programs(profile.id)
+
+
 @router.get("/challenges/{challenge_id}", response_model=ChallengeDetailResponse)
 async def get_challenge(
     challenge_id: UUID,
@@ -235,6 +246,24 @@ async def complete_task(
     result["new_score"] = new_score
     return result
 
+
+@router.post("/challenges/{challenge_id}/tasks")
+async def add_challenge_task(
+    challenge_id: UUID,
+    data: ChallengeTaskCreate,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    service = ChallengeService(db)
+    task = await service.add_personal_task(profile, challenge_id, data.title)
+    await db.commit()
+    type_val = task.type.value if hasattr(task.type, "value") else str(task.type)
+    return {
+        "id": task.id,
+        "title": task.title,
+        "type": type_val,
+        "sort_order": task.sort_order,
+    }
 
 @router.get("/challenges/{challenge_id}/days/{day_number}")
 async def get_challenge_day_detail(
@@ -516,8 +545,19 @@ async def create_group(
         max_missed_days=group.max_missed_days,
         starts_at=group.starts_at,
         status=group.status,
+        task_mode=getattr(group, "task_mode", None) or "shared",
         member_count=1,
     )
+
+
+@router.get("/groups/preview/{invite_code}", response_model=GroupInvitePreview)
+async def preview_group_invite(
+    invite_code: str,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    service = GroupService(db)
+    return await service.preview_by_invite_code(invite_code)
 
 
 @router.post("/groups/join", response_model=GroupResponse)
@@ -527,7 +567,9 @@ async def join_group(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = GroupService(db)
-    group = await service.join_group(profile, data.invite_code)
+    group = await service.join_group(
+        profile, data.invite_code, personal_tasks=data.personal_tasks
+    )
     count = await db.execute(
         select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group.id)
     )
@@ -539,6 +581,7 @@ async def join_group(
         max_missed_days=group.max_missed_days,
         starts_at=group.starts_at,
         status=group.status,
+        task_mode=getattr(group, "task_mode", None) or "shared",
         member_count=count.scalar() or 1,
     )
 
@@ -560,6 +603,17 @@ async def group_dashboard(
 ):
     service = GroupService(db)
     return await service.get_dashboard(group_id, profile.id)
+
+
+@router.get("/groups/{group_id}/day-roster")
+async def group_day_roster(
+    group_id: UUID,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    roster_date: date | None = Query(default=None, alias="date"),
+):
+    service = GroupService(db)
+    return await service.get_day_roster(group_id, profile.id, roster_date)
 
 
 @router.post("/groups/{group_id}/announcements")
@@ -585,7 +639,6 @@ async def post_announcement(
         "is_pinned": announcement.is_pinned,
         "created_at": announcement.created_at,
     }
-
 
 @router.get("/groups/{group_id}/members/{member_id}")
 async def group_member_profile(

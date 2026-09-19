@@ -16,9 +16,11 @@ class CreateGroupScreen extends ConsumerStatefulWidget {
 
 class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   final _name = TextEditingController();
+  final _customPersonal = TextEditingController();
   int _duration = 21;
   int _maxMissed = 3;
   bool _loading = false;
+  String _taskMode = 'shared';
 
   final _foundationOptions = const [
     'Wake up before 7',
@@ -32,6 +34,16 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
     'Daily planning',
     'Evening reflection',
   };
+
+  final _personalOptions = const [
+    'Study 1 hour',
+    'Workout 30 min',
+    'Journal',
+    'Read 30 pages',
+    'Deep work 2 hours',
+    'No phone before bed',
+  ];
+  final Set<String> _selectedPersonal = {};
 
   String _friendlyError(Object e) {
     if (e is DioException) {
@@ -53,11 +65,26 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
     return e.toString();
   }
 
+  void _addCustomPersonal() {
+    final text = _customPersonal.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _selectedPersonal.add(text);
+      _customPersonal.clear();
+    });
+  }
+
   Future<void> _create() async {
     if (_name.text.trim().isEmpty) return;
     if (_selectedFoundation.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pick at least 2 foundation tasks')),
+      );
+      return;
+    }
+    if (_taskMode == 'freedom' && _selectedPersonal.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least 2 of your personal tasks')),
       );
       return;
     }
@@ -67,8 +94,8 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Start group challenge?'),
         content: const Text(
-          'If you already have an active personal challenge, it will be archived '
-          'so this group challenge can start (one challenge at a time).',
+          'Your personal challenge can keep running. Starting this group creates a '
+          'separate group program (one group challenge at a time).',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -86,9 +113,12 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
         'max_missed_days': _maxMissed,
         'starts_at': DateTime.now().toIso8601String().split('T').first,
         'foundation_tasks': _selectedFoundation.toList(),
+        'task_mode': _taskMode,
+        if (_taskMode == 'freedom') 'personal_tasks': _selectedPersonal.toList(),
       });
       ref.invalidate(groupsProvider);
       ref.invalidate(activeChallengeProvider);
+      ref.invalidate(activeProgramsProvider);
       if (!mounted) return;
       context.pushReplacement('/groups/${group.id}/dashboard');
     } catch (e) {
@@ -133,7 +163,28 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
               onChanged: (v) => setState(() => _maxMissed = v ?? 3),
             ),
             const SizedBox(height: 20),
-            const Text('Foundation tasks (leader picks, cannot be removed)', style: TextStyle(fontWeight: FontWeight.w800)),
+            const Text('Task mode', style: TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'shared', label: Text('Same for all')),
+                ButtonSegment(value: 'freedom', label: Text('Add own tasks')),
+              ],
+              selected: {_taskMode},
+              onSelectionChanged: (s) => setState(() => _taskMode = s.first),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _taskMode == 'shared'
+                  ? 'Everyone uses the foundation tasks you pick below.'
+                  : 'Everyone gets your foundation tasks, plus their own personal tasks.',
+              style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Foundation tasks (shared with the group)',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -157,6 +208,66 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                 );
               }).toList(),
             ),
+            if (_taskMode == 'freedom') ...[
+              const SizedBox(height: 24),
+              Text(
+                'Your personal tasks (${_selectedPersonal.length}/2+)',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _personalOptions.map((task) {
+                  final selected = _selectedPersonal.contains(task);
+                  return FilterChip(
+                    label: Text(task),
+                    selected: selected,
+                    selectedColor: AppColors.teal.withValues(alpha: 0.15),
+                    checkmarkColor: AppColors.teal,
+                    onSelected: (v) {
+                      setState(() {
+                        if (v) {
+                          _selectedPersonal.add(task);
+                        } else {
+                          _selectedPersonal.remove(task);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _customPersonal,
+                      decoration: const InputDecoration(hintText: 'Custom personal task'),
+                      onSubmitted: (_) => _addCustomPersonal(),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: _addCustomPersonal,
+                  ),
+                ],
+              ),
+              if (_selectedPersonal.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ..._selectedPersonal.map(
+                  (t) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: Text(t),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => setState(() => _selectedPersonal.remove(t)),
+                    ),
+                  ),
+                ),
+              ],
+            ],
             const SizedBox(height: 28),
             PrimaryButton(label: 'Create Group', onPressed: _create, isLoading: _loading),
           ],
@@ -168,6 +279,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   @override
   void dispose() {
     _name.dispose();
+    _customPersonal.dispose();
     super.dispose();
   }
 }

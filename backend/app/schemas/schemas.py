@@ -1,7 +1,8 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class ORMModel(BaseModel):
@@ -203,10 +204,32 @@ class GroupCreate(BaseModel):
     max_missed_days: int = Field(default=3, ge=1, le=7)
     starts_at: date
     foundation_tasks: list[str] = Field(min_length=2)
+    task_mode: Literal["shared", "freedom"] = "shared"
+    personal_tasks: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_freedom_personal(self):
+        if self.task_mode == "freedom" and len(self.personal_tasks) < 2:
+            raise ValueError("Freedom groups require at least 2 personal tasks")
+        return self
 
 
 class GroupJoin(BaseModel):
     invite_code: str
+    personal_tasks: list[str] = Field(default_factory=list)
+
+
+class GroupInvitePreview(BaseModel):
+    name: str
+    duration_days: int
+    task_mode: str
+    foundation_tasks: list[str]
+    starts_at: date
+    max_missed_days: int
+
+
+class ChallengeTaskCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
 
 
 class GroupResponse(ORMModel):
@@ -217,6 +240,7 @@ class GroupResponse(ORMModel):
     max_missed_days: int
     starts_at: date
     status: str
+    task_mode: str = "shared"
     member_count: int = 0
     today_completion_percent: float = 0
     current_day: int = 1
@@ -261,6 +285,7 @@ class GroupDashboardInfo(BaseModel):
     max_missed_days: int
     starts_at: date
     status: str
+    task_mode: str = "shared"
     member_count: int = 0
     is_leader: bool = False
     leader_id: UUID | None = None

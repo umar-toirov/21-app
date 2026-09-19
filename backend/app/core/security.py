@@ -142,6 +142,18 @@ async def get_current_profile(
             or metadata.get("name")
             or email.split("@")[0]
         )
+
+        # Stale row from a previous auth user id (common after local SQLite / re-signup).
+        email_hit = await db.execute(
+            select(Profile).where(Profile.email == email, Profile.is_deleted.is_(False))
+        )
+        stale = email_hit.scalar_one_or_none()
+        if stale and stale.id != user_id:
+            stale.is_deleted = True
+            stale.deleted_at = utcnow()
+            stale.email = f"archived+{stale.id.hex[:12]}@ilmmode.local"
+            await db.flush()
+
         profile = Profile(
             id=user_id,
             email=email,

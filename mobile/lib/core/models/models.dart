@@ -129,6 +129,8 @@ class ChallengeModel {
   final double? recoveryHoursLeft;
   final List<ChallengeDayModel> days;
   final bool dayComplete;
+  final String type;
+  final String? groupId;
 
   ChallengeModel({
     required this.id,
@@ -145,6 +147,8 @@ class ChallengeModel {
     this.recoveryHoursLeft,
     this.days = const [],
     this.dayComplete = false,
+    this.type = 'individual',
+    this.groupId,
   });
 
   factory ChallengeModel.fromJson(Map<String, dynamic> json) => ChallengeModel(
@@ -166,10 +170,31 @@ class ChallengeModel {
             .map((e) => ChallengeDayModel.fromJson(e as Map<String, dynamic>))
             .toList(),
         dayComplete: json['day_complete'] as bool? ?? false,
+        type: json['type'] as String? ?? 'individual',
+        groupId: json['group_id'] as String?,
       );
 
   bool get isRecovery => status == 'recovery';
+  bool get isGroup => type == 'group';
   bool get allTasksComplete => tasks.isNotEmpty && tasks.every((t) => t.isCompleted);
+}
+
+class ActiveProgramsModel {
+  final ChallengeModel? personal;
+  final ChallengeModel? group;
+
+  ActiveProgramsModel({this.personal, this.group});
+
+  factory ActiveProgramsModel.fromJson(Map<String, dynamic> json) => ActiveProgramsModel(
+        personal: json['personal'] == null
+            ? null
+            : ChallengeModel.fromJson(json['personal'] as Map<String, dynamic>),
+        group: json['group'] == null
+            ? null
+            : ChallengeModel.fromJson(json['group'] as Map<String, dynamic>),
+      );
+
+  bool get isEmpty => personal == null && group == null;
 }
 
 class ChallengeSummaryModel {
@@ -245,6 +270,7 @@ class GroupModel {
   final int maxMissedDays;
   final String startsAt;
   final String status;
+  final String taskMode;
   final int memberCount;
   final double todayCompletionPercent;
   final int currentDay;
@@ -257,6 +283,7 @@ class GroupModel {
     required this.maxMissedDays,
     required this.startsAt,
     required this.status,
+    this.taskMode = 'shared',
     required this.memberCount,
     this.todayCompletionPercent = 0,
     this.currentDay = 1,
@@ -270,6 +297,7 @@ class GroupModel {
         maxMissedDays: json['max_missed_days'] as int? ?? 3,
         startsAt: json['starts_at'] as String,
         status: json['status'] as String,
+        taskMode: json['task_mode'] as String? ?? 'shared',
         memberCount: json['member_count'] as int? ?? 0,
         todayCompletionPercent: (json['today_completion_percent'] as num?)?.toDouble() ?? 0,
         currentDay: json['current_day'] as int? ?? 1,

@@ -20,8 +20,10 @@ from app.models.profile import (
     GroupMember,
     GroupMemberRole,
     GroupSession,
+    HpEvent,
     Profile,
     Task,
+    TaskCompletion,
     TaskType,
 )
 from app.services.challenge_service import FOUNDATION_TASKS, ChallengeService, generate_invite_code
@@ -32,11 +34,12 @@ class GroupService:
         self.db = db
         self.challenge_service = ChallengeService(db)
 
-    async def _archive_active_challenges(self, user_id: UUID) -> int:
-        """Archive any active/recovery challenges so a group challenge can start."""
+    async def _archive_active_group_challenges(self, user_id: UUID) -> int:
+        """Archive active/recovery GROUP challenges only — keep personal running."""
         result = await self.db.execute(
             select(Challenge).where(
                 Challenge.user_id == user_id,
+                Challenge.type == ChallengeType.GROUP,
                 Challenge.status.in_(
                     [ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY]
                 ),
@@ -91,7 +94,11 @@ class GroupService:
         return tasks if len(tasks) >= 2 else list(FOUNDATION_TASKS)
 
     async def _create_member_challenge(
-        self, user: Profile, group: Group, foundation_tasks: list[str]
+        self,
+        user: Profile,
+        group: Group,
+        foundation_tasks: list[str],
+        personal_tasks: list[str] | None = None,
     ) -> Challenge:
         challenge = Challenge(
             user_id=user.id,
@@ -116,6 +123,18 @@ class GroupService:
                 )
             )
 
+        personal = [t.strip() for t in (personal_tasks or []) if t and t.strip()]
+        sort_base = len(foundation_tasks)
+        for i, title in enumerate(personal):
+            self.db.add(
+                Task(
+                    challenge_id=challenge.id,
+                    title=title,
+                    type=TaskType.PERSONAL,
+                    sort_order=sort_base + i,
+                )
+            )
+
         start = group.starts_at
         for day_num in range(1, group.duration_days + 1):
             self.db.add(
@@ -129,13 +148,21 @@ class GroupService:
         return challenge
 
     async def create_group(self, leader: Profile, data: dict) -> Group:
-        await self._archive_active_challenges(leader.id)
+        await self._archive_active_group_challenges(leader.id)
         invite_code = generate_invite_code()
         while True:
             existing = await self.db.execute(select(Group).where(Group.invite_code == invite_code))
             if not existing.scalar_one_or_none():
                 break
             invite_code = generate_invite_code()
+
+        task_mode = data.get("task_mode") or "shared"
+        if task_mode not in ("shared", "freedom"):
+            raise AppError("VALIDATION", "task_mode must be 'shared' or 'freedom'")
+
+        personal_tasks = data.get("personal_tasks") or []
+        if task_mode == "freedom" and len(personal_tasks) < 2:
+            raise AppError("VALIDATION", "Freedom groups require at least 2 personal tasks")
 
         group = Group(
             leader_id=leader.id,
@@ -144,6 +171,7 @@ class GroupService:
             duration_days=data["duration_days"],
             max_missed_days=data.get("max_missed_days", 3),
             penalty_rules=data.get("penalty_rules") or {},
+            task_mode=task_mode,
             starts_at=data["starts_at"],
         )
         self.db.add(group)
@@ -154,7 +182,12 @@ class GroupService:
         )
 
         foundation_tasks = data.get("foundation_tasks", FOUNDATION_TASKS)
-        await self._create_member_challenge(leader, group, foundation_tasks)
+        await self._create_member_challenge(
+            leader,
+            group,
+            foundation_tasks,
+            personal_tasks=personal_tasks if task_mode == "freedom" else None,
+        )
 
         await self.record_activity(
             group.id,
@@ -165,7 +198,32 @@ class GroupService:
         await self.db.flush()
         return group
 
-    async def join_group(self, user: Profile, invite_code: str) -> Group:
+    async def preview_by_invite_code(self, invite_code: str) -> dict:
+        result = await self.db.execute(
+            select(Group).where(Group.invite_code == invite_code.upper())
+        )
+        group = result.scalar_one_or_none()
+        if not group:
+            raise NotFoundError("Group")
+        if group.status != "active":
+            raise AppError("GROUP_INACTIVE", "This group is no longer active")
+
+        foundation_tasks = await self._leader_foundation_tasks(group.id)
+        return {
+            "name": group.name,
+            "duration_days": group.duration_days,
+            "task_mode": getattr(group, "task_mode", None) or "shared",
+            "foundation_tasks": foundation_tasks,
+            "starts_at": group.starts_at,
+            "max_missed_days": group.max_missed_days,
+        }
+
+    async def join_group(
+        self,
+        user: Profile,
+        invite_code: str,
+        personal_tasks: list[str] | None = None,
+    ) -> Group:
         result = await self.db.execute(select(Group).where(Group.invite_code == invite_code.upper()))
         group = result.scalar_one_or_none()
         if not group:
@@ -181,7 +239,7 @@ class GroupService:
         if existing.scalar_one_or_none():
             return group
 
-        await self._archive_active_challenges(user.id)
+        await self._archive_active_group_challenges(user.id)
 
         member_count = await self.db.execute(
             select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group.id)
@@ -189,10 +247,23 @@ class GroupService:
         if (member_count.scalar() or 0) >= 100:
             raise AppError("GROUP_FULL", "Group has reached maximum capacity")
 
+        task_mode = getattr(group, "task_mode", None) or "shared"
+        personal = [t.strip() for t in (personal_tasks or []) if t and t.strip()]
+        if task_mode == "freedom" and len(personal) < 2:
+            raise AppError(
+                "VALIDATION",
+                "This group lets members add their own tasks — pick at least 2",
+            )
+
         self.db.add(GroupMember(group_id=group.id, user_id=user.id, role=GroupMemberRole.MEMBER))
 
         foundation_tasks = await self._leader_foundation_tasks(group.id)
-        await self._create_member_challenge(user, group, foundation_tasks)
+        await self._create_member_challenge(
+            user,
+            group,
+            foundation_tasks,
+            personal_tasks=personal if task_mode == "freedom" else None,
+        )
 
         await self.record_activity(
             group.id,
@@ -223,6 +294,7 @@ class GroupService:
                     "max_missed_days": g.max_missed_days,
                     "starts_at": g.starts_at,
                     "status": g.status,
+                    "task_mode": getattr(g, "task_mode", None) or "shared",
                     "member_count": len(g.members),
                     "today_completion_percent": today_pct,
                     "current_day": max(1, (date.today() - g.starts_at).days + 1),
@@ -314,6 +386,7 @@ class GroupService:
             missed_days = 0
             perfect_days = 0
             in_recovery = False
+            group_points = 0
             if challenge:
                 try:
                     if not challenge.days:
@@ -334,6 +407,19 @@ class GroupService:
                     current_day = max(1, challenge.current_day or 1)
                     missed_days = challenge.consecutive_missed
                     in_recovery = challenge.status == ChallengeStatus.RECOVERY
+                    perfect_days = sum(1 for d in (challenge.days or []) if d.is_perfect)
+
+                pts_result = await self.db.execute(
+                    select(func.coalesce(func.sum(HpEvent.delta), 0)).where(
+                        HpEvent.user_id == gm.user_id,
+                        HpEvent.challenge_id == challenge.id,
+                        HpEvent.delta > 0,
+                    )
+                )
+                group_points = int(pts_result.scalar() or 0)
+                if group_points == 0:
+                    # Fallback when events missing: completed group days × 10
+                    group_points = sum(1 for d in (challenge.days or []) if d.is_complete) * 10
 
             role_value = gm.role.value if hasattr(gm.role, "value") else str(gm.role).lower()
             req_match = (
@@ -348,6 +434,7 @@ class GroupService:
                     "avatar_url": profile.avatar_url,
                     "role": role_value,
                     "today_complete": today_complete,
+                    "group_points": group_points,
                     "hp": profile.hp,
                     "current_streak": profile.current_streak,
                     "discipline_score": profile.discipline_score,
@@ -361,7 +448,11 @@ class GroupService:
             )
 
         members_data.sort(
-            key=lambda m: (-m["discipline_score"], -m["current_streak"], -m["hp"])
+            key=lambda m: (
+                -m["group_points"],
+                -m["perfect_days"],
+                -int(m["today_complete"]),
+            )
         )
         for i, row in enumerate(members_data):
             row["rank"] = i + 1
@@ -375,7 +466,9 @@ class GroupService:
         today_done = sum(1 for m in members_data if m["today_complete"])
         member_count = len(members_data) or 1
         today_pct = round(today_done / member_count * 100, 1)
-        avg_hp = round(mean([m["hp"] for m in members_data]) if members_data else 0)
+        avg_group_points = round(
+            mean([m["group_points"] for m in members_data]) if members_data else 0
+        )
         avg_streak = round(mean([m["current_streak"] for m in members_data]) if members_data else 0)
         your_rank = next((m["rank"] for m in members_data if m["is_you"]), member_count)
         max_perfect = max((m["perfect_days"] for m in members_data), default=0)
@@ -454,6 +547,7 @@ class GroupService:
                 "max_missed_days": group.max_missed_days,
                 "starts_at": group.starts_at,
                 "status": group.status,
+                "task_mode": getattr(group, "task_mode", None) or "shared",
                 "member_count": member_count,
                 "is_leader": is_leader,
                 "leader_id": group.leader_id,
@@ -463,7 +557,8 @@ class GroupService:
                 "participants": member_count,
                 "completed_today": today_done,
                 "today_completion_percent": today_pct,
-                "average_hp": avg_hp,
+                "average_hp": avg_group_points,
+                "average_group_points": avg_group_points,
                 "average_streak": avg_streak,
                 "your_rank": your_rank,
                 "perfect_days": max_perfect,
@@ -535,12 +630,25 @@ class GroupService:
                 else:
                     personal_tasks.append(entry)
 
+        group_points = 0
+        if challenge:
+            pts_result = await self.db.execute(
+                select(func.coalesce(func.sum(HpEvent.delta), 0)).where(
+                    HpEvent.user_id == member_id,
+                    HpEvent.challenge_id == challenge.id,
+                    HpEvent.delta > 0,
+                )
+            )
+            group_points = int(pts_result.scalar() or 0)
+            if group_points == 0:
+                group_points = sum(1 for d in (challenge.days or []) if d.is_complete) * 10
+
         return {
             "user_id": profile.id,
             "full_name": profile.full_name,
             "avatar_url": profile.avatar_url,
+            "group_points": group_points,
             "hp": profile.hp,
-            "discipline_score": profile.discipline_score,
             "current_streak": profile.current_streak,
             "longest_streak": profile.longest_streak,
             "challenges_completed": profile.challenges_completed,
@@ -568,6 +676,7 @@ class GroupService:
             return {
                 "completion_percent": 0,
                 "average_hp": 0,
+                "average_group_points": 0,
                 "daily_active": 0,
                 "longest_streak": 0,
                 "top_performer": None,
@@ -579,9 +688,10 @@ class GroupService:
         completion = mean([m["completion_percent"] for m in members])
         daily_active = sum(1 for m in members if m["today_complete"])
         longest_streak = max(m["current_streak"] for m in members)
-        top = max(members, key=lambda m: m["discipline_score"])
+        top = max(members, key=lambda m: m["group_points"])
         consistent = max(members, key=lambda m: m["perfect_days"])
         improved = max(members, key=lambda m: m["current_streak"])
+        avg_pts = round(mean([m["group_points"] for m in members]))
 
         weekly_trend = []
         for i in range(7):
@@ -590,10 +700,11 @@ class GroupService:
 
         return {
             "completion_percent": round(completion, 1),
-            "average_hp": round(mean([m["hp"] for m in members])),
+            "average_hp": avg_pts,
+            "average_group_points": avg_pts,
             "daily_active": daily_active,
             "longest_streak": longest_streak,
-            "top_performer": {"name": top["full_name"], "score": top["discipline_score"]},
+            "top_performer": {"name": top["full_name"], "score": top["group_points"]},
             "most_consistent": {"name": consistent["full_name"], "perfect_days": consistent["perfect_days"]},
             "most_improved": {"name": improved["full_name"], "streak": improved["current_streak"]},
             "weekly_trend": weekly_trend,
@@ -720,3 +831,95 @@ class GroupService:
             group.penalty_rules = data["penalty_rules"]
         await self.db.flush()
         return group
+
+    async def get_day_roster(
+        self, group_id: UUID, leader_id: UUID, roster_date: date | None = None
+    ) -> dict:
+        group, _, is_leader = await self._ensure_membership(group_id, leader_id)
+        if not is_leader:
+            raise ForbiddenError("Only the leader can view the day roster")
+
+        target = roster_date or date.today()
+        if target < group.starts_at:
+            target = group.starts_at
+        end_date = group.starts_at + timedelta(days=group.duration_days - 1)
+        if target > end_date:
+            target = end_date
+
+        members_result = await self.db.execute(
+            select(GroupMember).where(GroupMember.group_id == group_id)
+        )
+        group_members = list(members_result.scalars().all())
+
+        members_out: list[dict] = []
+        for gm in group_members:
+            profile_result = await self.db.execute(
+                select(Profile).where(Profile.id == gm.user_id)
+            )
+            profile = profile_result.scalar_one_or_none()
+            if not profile:
+                continue
+
+            challenge_result = await self.db.execute(
+                select(Challenge)
+                .where(Challenge.group_id == group.id, Challenge.user_id == gm.user_id)
+                .options(selectinload(Challenge.tasks), selectinload(Challenge.days))
+            )
+            challenge = challenge_result.scalar_one_or_none()
+
+            tasks_out: list[dict] = []
+            day_complete = False
+            if challenge:
+                active_tasks = sorted(
+                    [t for t in challenge.tasks if t.is_active],
+                    key=lambda t: t.sort_order,
+                )
+                day = next(
+                    (d for d in challenge.days if d.calendar_date == target),
+                    None,
+                )
+                completed_ids: set[UUID] = set()
+                if day:
+                    comps = await self.db.execute(
+                        select(TaskCompletion.task_id).where(
+                            TaskCompletion.challenge_day_id == day.id
+                        )
+                    )
+                    completed_ids = set(comps.scalars().all())
+                    day_complete = bool(day.is_complete) or (
+                        all(t.id in completed_ids for t in active_tasks) if active_tasks else False
+                    )
+                for t in active_tasks:
+                    type_val = t.type.value if hasattr(t.type, "value") else str(t.type)
+                    tasks_out.append(
+                        {
+                            "id": t.id,
+                            "title": t.title,
+                            "type": type_val,
+                            "completed": t.id in completed_ids,
+                        }
+                    )
+
+            role_value = gm.role.value if hasattr(gm.role, "value") else str(gm.role).lower()
+            members_out.append(
+                {
+                    "user_id": profile.id,
+                    "full_name": profile.full_name,
+                    "avatar_url": profile.avatar_url,
+                    "role": role_value,
+                    "day_complete": day_complete,
+                    "tasks": tasks_out,
+                }
+            )
+
+        members_out.sort(key=lambda m: m["full_name"].lower())
+        prev_date = target - timedelta(days=1)
+        next_date = target + timedelta(days=1)
+        return {
+            "date": target.isoformat(),
+            "prev_date": prev_date.isoformat() if prev_date >= group.starts_at else None,
+            "next_date": next_date.isoformat() if next_date <= end_date else None,
+            "starts_at": group.starts_at.isoformat(),
+            "ends_at": end_date.isoformat(),
+            "members": members_out,
+        }

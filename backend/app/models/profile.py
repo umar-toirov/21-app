@@ -137,6 +137,8 @@ class Group(Base):
     duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
     max_missed_days: Mapped[int] = mapped_column(Integer, default=3)
     penalty_rules: Mapped[dict] = mapped_column(JSON, default=dict)
+    # "shared" = foundation only for all; "freedom" = foundation + personal tasks
+    task_mode: Mapped[str] = mapped_column(String(16), default="shared")
     status: Mapped[str] = mapped_column(String(32), default="active")
     starts_at: Mapped[date] = mapped_column(Date, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

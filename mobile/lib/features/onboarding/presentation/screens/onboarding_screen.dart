@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -50,6 +51,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       await ref.read(apiRepositoryProvider).completeOnboarding();
       if (!mounted) return;
+      ref.invalidate(activeChallengeProvider);
+      ref.invalidate(activeProgramsProvider);
+      ref.invalidate(profileProvider);
+      ref.invalidate(groupsProvider);
+      if (!mounted) return;
       context.go(AppRoutes.home);
     } catch (e) {
       if (mounted) {
@@ -88,50 +94,80 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final goalsAsync = ref.watch(goalsProvider);
+    final isCommit = _step == 4;
 
     return Scaffold(
+      backgroundColor: isCommit ? const Color(0xFFFFF8F2) : null,
       appBar: AppBar(
+        backgroundColor: isCommit ? const Color(0xFFFFF8F2) : null,
         title: Text('Setup · ${_steps[_step]}'),
         leading: _step > 0
-            ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => setState(() => _step--))
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => setState(() => _step--))
             : null,
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: (_step + 1) / _steps.length,
-                  minHeight: 10,
-                  color: AppColors.orange,
-                  backgroundColor: AppColors.borderStrong,
+      body: Container(
+        decoration: isCommit
+            ? const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFFFF8F2),
+                    Color(0xFFFFF1E6),
+                    Color(0xFFFFFFFF),
+                  ],
+                  stops: [0, 0.4, 1],
+                ),
+              )
+            : null,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: (_step + 1) / _steps.length,
+                    minHeight: 10,
+                    color: AppColors.orange,
+                    backgroundColor: AppColors.borderStrong,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: switch (_step) {
+                    0 => _buildGoalStep(goalsAsync),
+                    1 => _buildDurationStep(),
+                    2 => _buildFoundationStep(),
+                    3 => _buildTasksStep(),
+                    _ => _buildCommitStep(),
+                  },
+                ),
+              ),
+              Padding(
                 padding: const EdgeInsets.all(24),
-                child: switch (_step) {
-                  0 => _buildGoalStep(goalsAsync),
-                  1 => _buildDurationStep(),
-                  2 => _buildFoundationStep(),
-                  3 => _buildTasksStep(),
-                  _ => _buildCommitStep(),
-                },
+                child: isCommit
+                    ? PrimaryButton(
+                        label: 'I Commit — Start Day 1',
+                        onPressed: _next,
+                        isLoading: _loading,
+                      )
+                        .animate()
+                        .fadeIn(duration: 400.ms)
+                        .slideY(begin: 0.12, end: 0, curve: Curves.easeOutCubic)
+                    : PrimaryButton(
+                        label: 'Continue',
+                        onPressed: _next,
+                        isLoading: _loading,
+                      ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: PrimaryButton(
-                label: _step == 4 ? 'I Commit — Start Day 1' : 'Continue',
-                onPressed: _next,
-                isLoading: _loading,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -158,16 +194,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     ];
 
     return goalsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.orange)),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.orange)),
       error: (e, _) => Text('Error loading goals: $e'),
       data: (goals) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Choose your goal', style: Theme.of(context).textTheme.headlineSmall),
+          Text('Choose your goal',
+              style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
           const Text(
             'What are you building discipline for?',
-            style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+            style: TextStyle(
+                fontWeight: FontWeight.w700, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 20),
           GridView.builder(
@@ -188,13 +227,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   icons.entries
                       .firstWhere(
                         (e) => g.slug.toLowerCase().contains(e.key),
-                        orElse: () => MapEntry('custom', Icons.flag_rounded),
+                        orElse: () =>
+                            const MapEntry('custom', Icons.flag_rounded),
                       )
                       .value;
               return GestureDetector(
                 onTap: () => setState(() => _goal = g.slug),
                 child: SoftCard(
-                  color: selected ? color.withValues(alpha: 0.1) : AppColors.surface,
+                  color: selected
+                      ? color.withValues(alpha: 0.1)
+                      : AppColors.surface,
                   borderColor: selected ? color : AppColors.border,
                   padding: const EdgeInsets.all(14),
                   child: Column(
@@ -233,7 +275,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Challenge duration', style: Theme.of(context).textTheme.headlineSmall),
+        Text('Challenge duration',
+            style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 24),
         _DurationCard(
           days: 21,
@@ -255,11 +298,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Foundation tasks', style: Theme.of(context).textTheme.headlineSmall),
+        Text('Foundation tasks',
+            style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
         const Text(
           'Optional habits that support every challenge. You can include them or skip.',
-          style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+          style: TextStyle(
+              color: AppColors.textSecondary, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
         SoftCard(
@@ -302,7 +347,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Personal tasks', style: Theme.of(context).textTheme.headlineSmall),
+        Text('Personal tasks',
+            style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
         Text('Select at least 2 (${_selectedTasks.length} selected)'),
         const SizedBox(height: 16),
@@ -349,7 +395,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ),
         if (_selectedTasks.isNotEmpty) ...[
           const SizedBox(height: 16),
-          Text('Your personal tasks', style: Theme.of(context).textTheme.titleSmall),
+          Text('Your personal tasks',
+              style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           ..._selectedTasks.map(
             (t) => ListTile(
@@ -383,33 +430,114 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildCommitStep() {
+    final taskCount = _selectedTasks.length + (_includeFoundation ? 3 : 0);
+    final goalLabel = (_goal ?? 'goal').replaceAll('_', ' ');
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Center(child: BrandMascot(size: 100, variant: BrandLogoVariant.gold)),
-        const SizedBox(height: 16),
-        Text('Your commitment', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        Center(
+          child: Container(
+            width: 132,
+            height: 132,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0B1220),
+              borderRadius: BorderRadius.circular(36),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.navy.withValues(alpha: 0.35),
+                  blurRadius: 24,
+                  offset: const Offset(0, 14),
+                ),
+                BoxShadow(
+                  color: AppColors.teal.withValues(alpha: 0.18),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const BrandLogo(
+              size: 96,
+              variant: BrandLogoVariant.onBlue,
+            ),
+          ).animate().fadeIn(duration: 400.ms).scale(
+                begin: const Offset(0.92, 0.92),
+                curve: Curves.easeOutCubic,
+                duration: 450.ms,
+              ),
+        ),
+        const SizedBox(height: 28),
+        Text(
+          'Your commitment',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.1, end: 0),
+        const SizedBox(height: 8),
+        const Text(
+          'Review your plan, then lock Day 1.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ).animate().fadeIn(delay: 120.ms),
+        const SizedBox(height: 24),
         SoftCard(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Goal: ${_goal ?? ""}', style: const TextStyle(fontWeight: FontWeight.w800)),
-              Text('Duration: $_duration days', style: const TextStyle(fontWeight: FontWeight.w700)),
-              Text('Personal tasks: ${_selectedTasks.length}', style: const TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 16),
-              const Text(
-                'Discipline is choosing between what you want now and what you want most.',
-                style: TextStyle(fontStyle: FontStyle.italic, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+              _CommitSummaryRow(
+                icon: Icons.flag_rounded,
+                color: AppColors.orange,
+                label: 'Goal',
+                value: goalLabel,
+              ),
+              const Divider(height: 1),
+              _CommitSummaryRow(
+                icon: Icons.calendar_today_rounded,
+                color: AppColors.teal,
+                label: 'Duration',
+                value: '$_duration days',
+              ),
+              const Divider(height: 1),
+              _CommitSummaryRow(
+                icon: Icons.checklist_rounded,
+                color: AppColors.navy,
+                label: 'Daily tasks',
+                value: '$taskCount ready',
               ),
             ],
           ),
-        ),
+        )
+            .animate()
+            .fadeIn(delay: 160.ms)
+            .slideY(begin: 0.12, end: 0, curve: Curves.easeOutCubic),
+        const SizedBox(height: 20),
+        SoftCard(
+          color: AppColors.cream,
+          borderColor: AppColors.gold.withValues(alpha: 0.35),
+          child: const Text(
+            'Discipline is choosing between what you want now and what you want most.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontStyle: FontStyle.italic,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+        ).animate().fadeIn(delay: 220.ms),
         const SizedBox(height: 16),
         const Text(
           'By tapping "I Commit", you begin your training program.',
-          style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-        ),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+              fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+        ).animate().fadeIn(delay: 260.ms),
       ],
     );
   }
@@ -421,8 +549,67 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
+class _CommitSummaryRow extends StatelessWidget {
+  const _CommitSummaryRow({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.18),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DurationCard extends StatelessWidget {
-  const _DurationCard({required this.days, required this.selected, required this.onTap});
+  const _DurationCard(
+      {required this.days, required this.selected, required this.onTap});
   final int days;
   final bool selected;
   final VoidCallback onTap;
@@ -432,7 +619,9 @@ class _DurationCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: SoftCard(
-        color: selected ? AppColors.orange.withValues(alpha: 0.1) : AppColors.surface,
+        color: selected
+            ? AppColors.orange.withValues(alpha: 0.1)
+            : AppColors.surface,
         borderColor: selected ? AppColors.orange : AppColors.border,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,8 +635,11 @@ class _DurationCard extends StatelessWidget {
               ),
             ),
             Text(
-              days == 21 ? 'Classic discipline sprint' : 'Extended mastery program',
-              style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+              days == 21
+                  ? 'Classic discipline sprint'
+                  : 'Extended mastery program',
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700, color: AppColors.textSecondary),
             ),
           ],
         ),

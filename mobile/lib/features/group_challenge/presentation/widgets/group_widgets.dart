@@ -74,7 +74,8 @@ class GroupHeroCard extends StatelessWidget {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(999),
@@ -164,11 +165,19 @@ class GroupStatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _StatItem('Participants', '${stats['participants'] ?? 0}', Icons.groups_rounded, AppColors.navy),
-      _StatItem('Completed Today', '${stats['completed_today'] ?? 0}', Icons.check_circle_rounded, AppColors.teal),
-      _StatItem('Average HP', '${stats['average_hp'] ?? 0}', Icons.favorite_rounded, AppColors.orange),
-      _StatItem('Your Rank', '#${stats['your_rank'] ?? '-'}', Icons.emoji_events_rounded, AppColors.goldDepth),
-      _StatItem('Perfect Days', '${stats['perfect_days'] ?? 0}', Icons.star_rounded, AppColors.gold),
+      _StatItem('Participants', '${stats['participants'] ?? 0}',
+          Icons.groups_rounded, AppColors.navy),
+      _StatItem('Completed Today', '${stats['completed_today'] ?? 0}',
+          Icons.check_circle_rounded, AppColors.teal),
+      _StatItem(
+          'Average Points',
+          '${stats['average_group_points'] ?? stats['average_hp'] ?? 0}',
+          Icons.bolt_rounded,
+          AppColors.orange),
+      _StatItem('Your Rank', '#${stats['your_rank'] ?? '-'}',
+          Icons.emoji_events_rounded, AppColors.goldDepth),
+      _StatItem('Perfect Days', '${stats['perfect_days'] ?? 0}',
+          Icons.star_rounded, AppColors.gold),
     ];
 
     return Column(
@@ -176,7 +185,10 @@ class GroupStatGrid extends StatelessWidget {
       children: [
         Text(
           "Today's Group Status",
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -194,7 +206,8 @@ class GroupStatGrid extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       item.value,
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w900, fontSize: 22),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -225,7 +238,8 @@ class _StatItem {
 }
 
 class GroupProgressCard extends StatelessWidget {
-  const GroupProgressCard({super.key, required this.percent, required this.stats});
+  const GroupProgressCard(
+      {super.key, required this.percent, required this.stats});
 
   final double percent;
   final Map<String, dynamic> stats;
@@ -241,16 +255,23 @@ class GroupProgressCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const GlossyIcon(icon: Icons.rocket_launch_rounded, size: 40, color: AppColors.teal),
+              const GlossyIcon(
+                  icon: Icons.rocket_launch_rounded,
+                  size: 40,
+                  color: AppColors.teal),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Group Progress', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                    const Text('Group Progress',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900, fontSize: 16)),
                     Text(
                       '${percent.toStringAsFixed(0)}% completed today',
-                      style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -261,14 +282,14 @@ class GroupProgressCard extends StatelessWidget {
           AnimatedFillBar(value: percent / 100, height: 12),
           const SizedBox(height: 14),
           if (bonus)
-            _RewardChip(
+            const _RewardChip(
               icon: Icons.bolt_rounded,
-              label: '95% reached — Bonus HP for everyone!',
+              label: '95% reached — Bonus Points for everyone!',
               color: AppColors.orange,
             ),
           if (badge) ...[
             const SizedBox(height: 8),
-            _RewardChip(
+            const _RewardChip(
               icon: Icons.military_tech_rounded,
               label: '100% — Group Badge unlocked!',
               color: AppColors.goldDepth,
@@ -277,7 +298,7 @@ class GroupProgressCard extends StatelessWidget {
           if (!bonus && !badge) ...[
             const SizedBox(height: 4),
             Text(
-              'Reach 95% for bonus HP · 100% unlocks a group badge',
+              'Reach 95% for bonus Points · 100% unlocks a group badge',
               style: TextStyle(
                 color: AppColors.textSecondary.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w600,
@@ -292,7 +313,8 @@ class GroupProgressCard extends StatelessWidget {
 }
 
 class _RewardChip extends StatelessWidget {
-  const _RewardChip({required this.icon, required this.label, required this.color});
+  const _RewardChip(
+      {required this.icon, required this.label, required this.color});
 
   final IconData icon;
   final String label;
@@ -315,12 +337,15 @@ class _RewardChip extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12),
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.w800, fontSize: 12),
             ),
           ),
         ],
       ),
-    ).animate().scale(begin: const Offset(0.96, 0.96), curve: Curves.easeOutBack);
+    )
+        .animate()
+        .scale(begin: const Offset(0.96, 0.96), curve: Curves.easeOutBack);
   }
 }
 
@@ -337,7 +362,8 @@ class PinnedAnnouncements extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Pinned', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        const Text('Pinned',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
         const SizedBox(height: 10),
         ...pinned.map((a) {
           final map = a as Map<String, dynamic>;
@@ -349,14 +375,16 @@ class PinnedAnnouncements extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.cream,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
+                border:
+                    Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.push_pin_rounded, size: 16, color: AppColors.goldDepth),
+                      const Icon(Icons.push_pin_rounded,
+                          size: 16, color: AppColors.goldDepth),
                       const SizedBox(width: 6),
                       Text(
                         map['title'] as String? ?? 'Announcement',
@@ -367,7 +395,8 @@ class PinnedAnnouncements extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     map['body'] as String? ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.w600, height: 1.4),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, height: 1.4),
                   ),
                 ],
               ),
@@ -431,7 +460,8 @@ class GroupActivityFeed extends StatelessWidget {
           child: Text(
             'Activity will appear here as your team completes missions.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                color: AppColors.textSecondary, fontWeight: FontWeight.w600),
           ),
         ),
       );
@@ -440,7 +470,8 @@ class GroupActivityFeed extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Team Activity', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        const Text('Team Activity',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
         const SizedBox(height: 10),
         ...feed.take(15).map((item) {
           final map = item as Map<String, dynamic>;
@@ -449,7 +480,8 @@ class GroupActivityFeed extends StatelessWidget {
           String timeLabel = '';
           if (created != null) {
             try {
-              timeLabel = DateFormat.jm().format(DateTime.parse(created.toString()).toLocal());
+              timeLabel = DateFormat.jm()
+                  .format(DateTime.parse(created.toString()).toLocal());
             } catch (_) {}
           }
           return Padding(
@@ -458,7 +490,8 @@ class GroupActivityFeed extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  GlossyIcon(icon: _iconFor(type), size: 36, color: _colorFor(type)),
+                  GlossyIcon(
+                      icon: _iconFor(type), size: 36, color: _colorFor(type)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -466,7 +499,8 @@ class GroupActivityFeed extends StatelessWidget {
                       children: [
                         Text(
                           map['message'] as String? ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 13),
                         ),
                         if (timeLabel.isNotEmpty)
                           Text(
@@ -501,7 +535,8 @@ class GroupPodium extends StatelessWidget {
     if (members.isEmpty) return const SizedBox.shrink();
     final top3 = members.take(3).toList();
 
-    Widget podiumSlot(Map<String, dynamic> m, int place, double height, Color medal) {
+    Widget podiumSlot(
+        Map<String, dynamic> m, int place, double height, Color medal) {
       return Expanded(
         child: GestureDetector(
           onTap: onTap != null ? () => onTap!(m['user_id'] as String) : null,
@@ -514,7 +549,9 @@ class GroupPodium extends StatelessWidget {
                     radius: place == 1 ? 36 : 30,
                     backgroundColor: medal.withValues(alpha: 0.2),
                     child: Text(
-                      (m['full_name'] as String? ?? '?').substring(0, 1).toUpperCase(),
+                      (m['full_name'] as String? ?? '?')
+                          .substring(0, 1)
+                          .toUpperCase(),
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: place == 1 ? 22 : 18,
@@ -527,7 +564,8 @@ class GroupPodium extends StatelessWidget {
                     right: -4,
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: medal, shape: BoxShape.circle),
+                      decoration:
+                          BoxDecoration(color: medal, shape: BoxShape.circle),
                       child: Text(
                         '#$place',
                         style: const TextStyle(
@@ -545,10 +583,11 @@ class GroupPodium extends StatelessWidget {
                 m['full_name'] as String? ?? '',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
               ),
               Text(
-                'HP ${m['hp']}',
+                '${m['group_points'] ?? m['hp'] ?? 0} pts',
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w700,
@@ -560,7 +599,8 @@ class GroupPodium extends StatelessWidget {
                 height: height,
                 decoration: BoxDecoration(
                   color: medal.withValues(alpha: 0.25),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
                 ),
               ),
             ],
@@ -577,7 +617,11 @@ class GroupPodium extends StatelessWidget {
 
     final medals = [AppColors.muted, AppColors.gold, const Color(0xFFCD7F32)];
     final heights = [56.0, 80.0, 44.0];
-    final places = top3.length >= 3 ? [2, 1, 3] : top3.length == 2 ? [2, 1] : [1];
+    final places = top3.length >= 3
+        ? [2, 1, 3]
+        : top3.length == 2
+            ? [2, 1]
+            : [1];
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -586,7 +630,8 @@ class GroupPodium extends StatelessWidget {
         children: List.generate(order.length, (i) {
           final m = order[i] as Map<String, dynamic>;
           final medal = medals[i.clamp(0, medals.length - 1)];
-          return podiumSlot(m, places[i], heights[i.clamp(0, heights.length - 1)], medal);
+          return podiumSlot(
+              m, places[i], heights[i.clamp(0, heights.length - 1)], medal);
         }),
       ),
     );
@@ -625,7 +670,9 @@ class GroupLeaderboardTile extends StatelessWidget {
                   '#$rank',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    color: rank <= 3 ? AppColors.goldDepth : AppColors.textSecondary,
+                    color: rank <= 3
+                        ? AppColors.goldDepth
+                        : AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -633,8 +680,11 @@ class GroupLeaderboardTile extends StatelessWidget {
                 radius: 22,
                 backgroundColor: AppColors.teal.withValues(alpha: 0.15),
                 child: Text(
-                  (member['full_name'] as String? ?? '?').substring(0, 1).toUpperCase(),
-                  style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.teal),
+                  (member['full_name'] as String? ?? '?')
+                      .substring(0, 1)
+                      .toUpperCase(),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w900, color: AppColors.teal),
                 ),
               ),
               const SizedBox(width: 12),
@@ -647,7 +697,7 @@ class GroupLeaderboardTile extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     Text(
-                      'HP ${member['hp']} · Score ${member['discipline_score']} · '
+                      '${member['group_points'] ?? 0} pts · '
                       'Streak ${member['current_streak']}',
                       style: const TextStyle(
                         fontSize: 11,
@@ -660,13 +710,17 @@ class GroupLeaderboardTile extends StatelessWidget {
               ),
               if (delta != 0)
                 Icon(
-                  delta > 0 ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                  delta > 0
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded,
                   size: 18,
                   color: delta > 0 ? AppColors.teal : AppColors.danger,
                 ),
               const SizedBox(width: 6),
               Icon(
-                done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                done
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
                 color: done ? AppColors.success : AppColors.muted,
                 size: 22,
               ),
@@ -701,13 +755,15 @@ class AttendanceHeatmap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (days.isEmpty) {
-      return const Text('No attendance data yet.', style: TextStyle(color: AppColors.textSecondary));
+      return const Text('No attendance data yet.',
+          style: TextStyle(color: AppColors.textSecondary));
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Daily Attendance', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        const Text('Daily Attendance',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
         const SizedBox(height: 12),
         Wrap(
           spacing: 4,
@@ -743,9 +799,17 @@ class AttendanceHeatmap extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(2))),
+        Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+                color: c, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary)),
       ],
     );
   }
@@ -768,13 +832,17 @@ class LiveSessionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const GlossyIcon(icon: Icons.videocam_rounded, size: 40, color: AppColors.navy),
+              const GlossyIcon(
+                  icon: Icons.videocam_rounded,
+                  size: 40,
+                  color: AppColors.navy),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Upcoming Session', style: TextStyle(fontWeight: FontWeight.w900)),
+                    const Text('Upcoming Session',
+                        style: TextStyle(fontWeight: FontWeight.w900)),
                     Text(
                       s['title'] as String? ?? 'Live session',
                       style: const TextStyle(fontWeight: FontWeight.w700),
@@ -788,7 +856,8 @@ class LiveSessionCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               DateFormat('EEE, MMM d · h:mm a').format(scheduled.toLocal()),
-              style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontWeight: FontWeight.w700),
             ),
           ],
           if (s['meeting_url'] != null) ...[
@@ -815,7 +884,9 @@ class GroupLoadingState extends StatelessWidget {
         children: [
           CircularProgressIndicator(color: AppColors.orange),
           SizedBox(height: 16),
-          Text('Loading your team…', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+          Text('Loading your team…',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -823,7 +894,8 @@ class GroupLoadingState extends StatelessWidget {
 }
 
 class GroupErrorState extends StatelessWidget {
-  const GroupErrorState({super.key, required this.message, required this.onRetry});
+  const GroupErrorState(
+      {super.key, required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -836,16 +908,224 @@ class GroupErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const GlossyIcon(icon: Icons.cloud_off_rounded, size: 56, color: AppColors.muted),
+            const GlossyIcon(
+                icon: Icons.cloud_off_rounded,
+                size: 56,
+                color: AppColors.muted),
             const SizedBox(height: 16),
-            const Text('Could not load group', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+            const Text('Could not load group',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
             const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 20),
             PrimaryButton(label: 'Try again', onPressed: onRetry),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Leader-only day roster: Today / Yesterday / pick date + per-member task status.
+class GroupMemberActionsRoster extends StatelessWidget {
+  const GroupMemberActionsRoster({
+    super.key,
+    required this.roster,
+    required this.selectedDate,
+    required this.onSelectDate,
+    required this.onPickDate,
+    this.onTapMember,
+  });
+
+  final Map<String, dynamic> roster;
+  final DateTime selectedDate;
+  final void Function(DateTime date) onSelectDate;
+  final VoidCallback onPickDate;
+  final void Function(String userId)? onTapMember;
+
+  String _ymd(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final todayKey = _ymd(DateTime(today.year, today.month, today.day));
+    final yesterday = DateTime(today.year, today.month, today.day)
+        .subtract(const Duration(days: 1));
+    final yesterdayKey = _ymd(yesterday);
+    final selectedKey = _ymd(selectedDate);
+    final members = (roster['members'] as List<dynamic>?) ?? [];
+    final label = DateFormat('EEE, MMM d').format(selectedDate);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Member actions',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+              color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Today'),
+              selected: selectedKey == todayKey,
+              selectedColor: AppColors.orange.withValues(alpha: 0.18),
+              onSelected: (_) =>
+                  onSelectDate(DateTime(today.year, today.month, today.day)),
+            ),
+            ChoiceChip(
+              label: const Text('Yesterday'),
+              selected: selectedKey == yesterdayKey,
+              selectedColor: AppColors.orange.withValues(alpha: 0.18),
+              onSelected: (_) => onSelectDate(yesterday),
+            ),
+            ActionChip(
+              avatar: const Icon(Icons.calendar_today_rounded, size: 16),
+              label: const Text('Pick date'),
+              onPressed: onPickDate,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (members.isEmpty)
+          const SoftCard(
+            child: Text(
+              'No members yet.',
+              style: TextStyle(
+                  color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            ),
+          )
+        else
+          ...members.map((raw) {
+            final m = raw as Map<String, dynamic>;
+            final tasks = (m['tasks'] as List<dynamic>?) ?? [];
+            final done =
+                tasks.where((t) => (t as Map)['completed'] == true).length;
+            final dayComplete = m['day_complete'] == true;
+            final userId = m['user_id'] as String? ?? '';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: GestureDetector(
+                onTap: onTapMember != null && userId.isNotEmpty
+                    ? () => onTapMember!(userId)
+                    : null,
+                child: SoftCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor:
+                                AppColors.orange.withValues(alpha: 0.15),
+                            child: Text(
+                              ((m['full_name'] as String?) ?? '?').isNotEmpty
+                                  ? (m['full_name'] as String)[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.orange),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  m['full_name'] as String? ?? 'Member',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800),
+                                ),
+                                Text(
+                                  tasks.isEmpty
+                                      ? 'No tasks'
+                                      : '$done/${tasks.length} tasks${dayComplete ? ' · day complete' : ''}',
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            dayComplete
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked,
+                            color:
+                                dayComplete ? AppColors.teal : AppColors.muted,
+                          ),
+                        ],
+                      ),
+                      if (tasks.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        ...tasks.map((rawTask) {
+                          final t = rawTask as Map<String, dynamic>;
+                          final completed = t['completed'] == true;
+                          final type = t['type'] as String? ?? 'personal';
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  completed
+                                      ? Icons.check_box_rounded
+                                      : Icons.check_box_outline_blank_rounded,
+                                  size: 20,
+                                  color: completed
+                                      ? AppColors.teal
+                                      : AppColors.muted,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    t['title'] as String? ?? 'Task',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      decoration: completed
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                      color: completed
+                                          ? AppColors.textSecondary
+                                          : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                                if (type == 'foundation')
+                                  const Text(
+                                    'F',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.gold,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+      ],
+    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.04, end: 0);
   }
 }

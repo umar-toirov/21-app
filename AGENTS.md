@@ -4,178 +4,212 @@ Guidance for AI agents and developers working in this repo.
 
 ## What this project is
 
-Discipline-building Flutter + FastAPI app for students: challenges, HP, streaks, groups, badges, certificates. Planning/spec: `docs/PLANNING.md`. Human README: `README.md`.
+Discipline-building Flutter + FastAPI app for students: challenges, HP, streaks, groups, badges, certificates. Not a chat app — groups are an **accountability platform**.
 
-## Three separate pieces (do not confuse them)
+| Doc | Purpose |
+|-----|---------|
+| `README.md` | Human quick start |
+| `docs/PLANNING.md` | Product / technical PRD |
+| `docs/DEPLOY.md` | Supabase DB + future API host |
+| `docs/GROUPS_DESIGN.md` | Groups IA / screens |
+| `CLAUDE.md` | Short entry for Claude Code (points here) |
+
+**GitHub:** https://github.com/toiroff/21-app (branch `main`)
+
+## Three pieces (do not confuse them)
 
 | Piece | Role | When it fails |
 |-------|------|----------------|
-| **Flutter** (`mobile/`) | UI: screens, design, navigation | App won’t open / layout bugs |
-| **Backend** (`backend/`) | API: challenges, HP, groups, profiles (SQLite locally) | Data after login fails; `/v1/health` down |
-| **Supabase** | Auth only (email signup/login JWT) | Signup/login errors, email rate limits |
+| **Flutter** (`mobile/`) | UI, navigation, Riverpod, go_router | App won’t open / layout bugs |
+| **Backend** (`backend/`) | FastAPI: challenges, HP, groups, profiles | Data after login fails; `/v1/health` down |
+| **Supabase** | **Auth** (email + Google JWT) **and** **Postgres** (app data) | Signup/login errors; empty/missing cloud data |
 
-**Design / UI editing** needs Flutter (+ optional backend). It does **not** require a successful login or Android Studio.
+**Design / UI** → Flutter (+ optional backend). Does **not** need login or Android Studio.  
+**Login/signup** → Supabase Auth.  
+**App data after auth** → FastAPI → Supabase Postgres (preferred) or local SQLite fallback.
 
-**Login/signup** = Supabase. **App data after auth** = backend.
+Supabase **cannot** host the Python FastAPI process. Phase 2 later: Render Free or Railway for the API only (`docs/DEPLOY.md`).
 
 ## Machine / toolchain (this workspace)
 
 - OS: Windows
-- Flutter SDK: `C:\src\flutter` (add `C:\src\flutter\bin` to `PATH`; set `FLUTTER_ROOT=C:\src\flutter`)
-- Backend: Python + uvicorn on `http://127.0.0.1:8000`
-- Local DB: SQLite at `backend/ilmmode.db` (`DATABASE_URL=sqlite+aiosqlite:///./ilmmode.db`) — used because Supabase Postgres was unreachable from this network
-- Secrets: `backend/.env`, `mobile/env.json`, `mobile/env.android.json` (gitignored; never commit or paste keys into docs/chat)
+- Flutter SDK: `C:\src\flutter` (`PATH` += `C:\src\flutter\bin`; `FLUTTER_ROOT=C:\src\flutter`)
+- Backend: Python + uvicorn — prefer **`http://127.0.0.1:8001`** (also fine on `8000` if free)
+- Database: **`DATABASE_URL` in `backend/.env`**
+  - Production-like: Supabase Postgres (`postgresql+asyncpg://…` or `postgresql://…`; app normalizes + SSL)
+  - Fallback: `sqlite+aiosqlite:///./ilmmode.db` if home network blocks Supabase
+- Test DB: `cd backend; python -m tools.test_db`
+- Secrets (gitignored — never commit or paste into chat):  
+  `backend/.env`, `mobile/env.json`, `mobile/env.android.json`, `mobile/env.android.usb.json`
 
 ## Project layout
 
 ```
 App/
-├── AGENTS.md              # This file
+├── AGENTS.md / CLAUDE.md
 ├── README.md
-├── docs/PLANNING.md
+├── docs/
+│   ├── PLANNING.md
+│   ├── DEPLOY.md
+│   └── GROUPS_DESIGN.md
 ├── docker-compose.yml
-├── backend/               # FastAPI + SQLAlchemy
-│   ├── .env
-│   ├── ilmmode.db         # Local SQLite (dev)
+├── backend/
+│   ├── .env / .env.example
+│   ├── Dockerfile          # $PORT-aware (Render/Railway later)
+│   ├── tools/test_db.py
+│   ├── tools/set_supabase_db_url.ps1
 │   └── app/
-└── mobile/                # Flutter app
-    ├── env.json           # Chrome / localhost API
-    ├── env.android.json   # Emulator → 10.0.2.2
-    ├── run-chrome.ps1
+└── mobile/
+    ├── env.json            # Chrome → 127.0.0.1:8001
+    ├── env.android.json    # Emulator → 10.0.2.2:8001
+    ├── env.android.usb.json
+    ├── env.production.json.example
+    ├── run-chrome.ps1      # Preferred Flutter web
     ├── run-phone-preview.ps1
+    ├── run-android-emulator.ps1
+    ├── run-phone-usb.ps1
     └── lib/
 ```
 
 ## How to run (Windows)
 
-### 1. Backend (Terminal 1)
+### 1. Backend
 
 ```powershell
 cd C:\Users\Muhammadumar\OneDrive\Desktop\App\backend
 python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m tools.test_db
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
-Health check: `http://127.0.0.1:8000/v1/health` → `{"status":"ok","service":"ilm-mode-api"}`  
-API docs: `http://127.0.0.1:8000/docs`
+Health: `http://127.0.0.1:8001/v1/health` → `{"status":"ok","service":"ilm-mode-api"}`  
+Docs: `http://127.0.0.1:8001/docs`
 
-### 2. Flutter — Chrome (preferred for design)
+Match `API_BASE_URL` in `mobile/env.json` to the same port.
+
+### 2. Flutter — Chrome (preferred)
 
 ```powershell
 cd C:\Users\Muhammadumar\OneDrive\Desktop\App\mobile
 .\run-chrome.ps1
 ```
 
-Phone-sized Chrome window (side-by-side coding):
+Phone-sized window: `.\run-phone-preview.ps1`  
+Hot reload: `r` / hot restart: `R` in the Flutter terminal.
 
-```powershell
-.\run-phone-preview.ps1
-```
-
-Hot reload: press `r` in the Flutter terminal (or `R` for hot restart).  
-Side-by-side: Cursor **Win+←**, Chrome **Win+→**.
-
-Uses `env.json` → `API_BASE_URL=http://localhost:8000/v1`.
+**Do not** use the same-origin proxy (`8090`) for day-to-day debug — Flutter `web-server` + proxy often shows a blank page. Use `flutter run -d chrome` via `run-chrome.ps1`.
 
 ### 3. Flutter — Android emulator
 
-Requires Android Studio + a virtual device (AVD). Chrome works without this.
-
-1. Install [Android Studio](https://developer.android.com/studio)
-2. Device Manager → Create Device (e.g. Pixel 7) → download **one** system image (~1–2 GB) → Finish → Play
-3. Accept licenses: `flutter doctor --android-licenses`
-4. With emulator running and backend up:
+AVD exists (e.g. `Pixel_9_Pro`). Backend must be up.
 
 ```powershell
-cd C:\Users\Muhammadumar\OneDrive\Desktop\App\mobile
-$env:Path = "C:\src\flutter\bin;" + $env:Path
-flutter run --dart-define-from-file=env.android.json
+cd mobile
+.\run-android-emulator.ps1
+# or: flutter run -d android --dart-define-from-file=env.android.json
 ```
 
-Uses `env.android.json` → `API_BASE_URL=http://10.0.2.2:8000/v1` (emulator’s alias for host localhost).
+`10.0.2.2` = emulator → host PC. Align port with uvicorn (8001).
 
-There is **no iPhone simulator on Windows**. Closest options: Chrome phone window or Android emulator.
+USB phone: `.\run-phone-usb.ps1` + `adb reverse` (USB debugging required).  
+No iOS Simulator on Windows.
 
-### VS Code / Cursor launch configs
+### Launch configs
 
-`mobile/.vscode/launch.json` includes:
+`mobile/.vscode/launch.json`: Phone preview (Chrome), Android emulator, Android USB, Chrome full.
 
-- Phone preview (Chrome)
-- Android emulator
-- Chrome (full browser)
-
-## Auth flow (brief)
+## Auth flow
 
 1. **Signup:** Supabase `signUp` → `POST /profiles` → onboarding  
-2. **Login:** Supabase `signInWithPassword` → `GET /me` (JWT + profile; backend may auto-create profile)  
-3. JWT verified with `SUPABASE_JWT_SECRET` from `backend/.env`
+2. **Login:** `signInWithPassword` or Google OAuth (PKCE web) → `GET /me`  
+3. JWT verified with `SUPABASE_JWT_SECRET`  
+4. Web: path URL strategy + `/auth/callback`; add Redirect URLs in Supabase for each origin used  
 
-If Supabase “Confirm email” is enabled, signup may require checking email. Rate limit `429 over_email_send_rate_limit` means wait or disable confirm email in Supabase Auth settings for local testing.
+Email confirm / `429 over_email_send_rate_limit`: wait or disable confirm email for local testing.
 
-## Flutter UI locations (design work)
+## Product rules agents must respect
+
+- **One personal + one group challenge** may run in parallel; starting a second personal (or second group) archives/blocks only that type. Creating/joining a group does **not** archive a personal challenge  
+- **Day advance at midnight** via `sync_calendar_day` — do not bump `current_day` on task complete  
+- **Discipline score** starts at **0** for new profiles  
+- **Groups ≠ chat** — activity feed, announcements, leaderboard, stats only  
+- Foundation tasks on group create: leader-chosen; joiners inherit leader’s foundation list. Task mode `shared` (foundation only) or `freedom` (foundation + each member’s personal tasks)  
+
+## Flutter UI map
 
 | Area | Path |
 |------|------|
-| Landing | `mobile/lib/features/auth/presentation/screens/landing_screen.dart` |
-| Login / signup | `mobile/lib/features/auth/presentation/screens/` |
+| Landing / auth | `mobile/lib/features/auth/presentation/screens/` |
 | Onboarding | `mobile/lib/features/onboarding/` |
-| Challenge dashboard | `mobile/lib/features/challenge/presentation/screens/` |
-| Groups | `mobile/lib/features/groups/` |
+| Challenge home / detail / history | `mobile/lib/features/challenge/presentation/screens/` |
+| Groups | `mobile/lib/features/group_challenge/` (not `features/groups/`) |
+| Group widgets | `…/group_challenge/presentation/widgets/group_widgets.dart` |
 | Statistics | `mobile/lib/features/statistics/` |
 | Profile / badges | `mobile/lib/features/profile/` |
 | Settings | `mobile/lib/features/settings/` |
+| Shell / tabs | `mobile/lib/features/shell/` |
 | Router | `mobile/lib/core/router/app_router.dart` |
-| Theme | `mobile/lib/core/theme/` (or equivalent under `core/`) |
+| Theme | `mobile/lib/core/theme/app_theme.dart` |
 
-Import depth: feature screens typically use `../../../../core/...` (not `../../../core/`).
+Import depth from feature screens: usually `../../../../core/...`.
+
+Brand: primary orange `#F15A29`, teal success, gold achievements, blue accent only.
 
 ## Backend notes
 
-- Dev DB is **SQLite**, not Postgres. Models use portable `JSON` / UUID types (not Postgres-only `JSONB` where avoided for SQLite).
-- **Phase 1 cloud data:** point `DATABASE_URL` at **Supabase Postgres** (see `docs/DEPLOY.md`). Auth stays on Supabase; FastAPI still runs locally until Phase 2 host (Render/Railway).
-- Startup seeds goals/badges/quotes when empty.
-- Do not assume Docker Postgres is required for local UI work.
+- Prefer **Supabase Postgres** via `DATABASE_URL` (`asyncpg`, SSL for cloud hosts)  
+- SQLite still supported for offline/local if Postgres unreachable  
+- Startup: `create_all` + seed goals/badges/quotes when empty  
+- Group APIs: dashboard (stats/feed/announcements/sessions), member profile + heatmap, statistics, announcements, settings, remove member  
+- Jobs: `POST /v1/close-day` (internal secret)  
+- Portable types (`JSON`, UUID) — avoid Postgres-only types that break SQLite  
 
 ## Known issues / gotchas
 
-- **Android toolchain incomplete** without Android Studio AVD + licenses; `flutter emulators` may show none until AVD is created.
-- **Visual Studio** incomplete → Windows desktop Flutter target may fail; use Chrome instead.
-- **Landing overflow** on narrow Chrome windows (yellow/black stripes) — widen window or fix layout in landing screen.
-- **Login `setState` after dispose** — guard with `mounted` after async auth.
-- **Secrets exposed in chat historically** — rotate Supabase keys if they were shared; never commit `.env` / `env.json`.
-- Manual cmdline-tools installs on this machine were unreliable; prefer Android Studio’s SDK Manager for emulator setup.
+- Blank page on `http://127.0.0.1:8090` (proxy + web-server) — use `run-chrome.ps1` instead  
+- `localhost` vs `127.0.0.1` IPv6 mismatch on Windows — prefer `127.0.0.1`  
+- CORS: list explicit origins; `*` incompatible with credentials  
+- Naive vs aware datetimes from SQLite/Postgres — use `as_utc` helpers  
+- Android USB: device may not appear until USB debugging + allow prompt  
+- First Android Gradle build can take many minutes (esp. under OneDrive)  
+- Visual Studio incomplete → skip Windows desktop Flutter target  
+- Secrets may have been shared in chat historically — rotate if unsure  
 
 ## What agents should / should not do
 
 **Do:**
 
-- Prefer Chrome (`run-chrome.ps1` / phone preview) for UI/design iteration
-- Keep backend on port 8000 when testing API-backed flows
-- Use `env.android.json` only for Android emulator runs
-- Match existing Flutter/Riverpod/go_router patterns; minimal diffs
-- Ask before git commit/push
+- Prefer Chrome for UI/design  
+- Keep backend running when testing authenticated / group flows  
+- Match Riverpod / go_router / existing patterns; minimal diffs  
+- Ask before git commit / push  
+- Read `docs/DEPLOY.md` before changing hosting or `DATABASE_URL` strategy  
 
 **Do not:**
 
-- Confuse Supabase auth failures with Flutter UI bugs
-- Switch back to remote Postgres without confirming network/connectivity
-- Commit secrets or rewrite large unrelated areas
-- Assume iOS Simulator exists on Windows
-- Spend time on Android emulator setup when the user only wants design editing in Chrome
+- Confuse Supabase Auth failures with Flutter layout bugs  
+- Assume FastAPI can run *inside* Supabase  
+- Commit `.env` / env JSON with keys  
+- Rewrite large unrelated areas or build a chat UI for groups  
+- Assume iOS Simulator on Windows  
+- Spend long on Android setup when the user only wants Chrome design work  
 
 ## Quick decision guide
 
 | User goal | Do this |
 |-----------|---------|
-| Edit design / see screens | Backend optional; `.\run-chrome.ps1` |
-| Test login | Supabase + Flutter; check email confirm / rate limits |
-| Test challenges after login | Backend + Flutter + successful auth |
-| Phone-shaped preview without Android | `.\run-phone-preview.ps1` |
-| Real Android emulator | Android Studio AVD + `env.android.json` |
+| Edit design / see screens | `.\run-chrome.ps1` (backend optional) |
+| Test login / Google | Supabase + Flutter; check Redirect URLs |
+| Test challenges / groups | Backend + Flutter + auth; DB = Supabase or SQLite |
+| Wire / check cloud DB | `python -m tools.test_db`; see `docs/DEPLOY.md` |
+| Phone-shaped preview | `.\run-phone-preview.ps1` |
+| Android emulator | `.\run-android-emulator.ps1` |
+| Public API without PC | Phase 2 — Render/Railway (not done yet) |
 
-## API base (reminder)
+## API reminder
 
-- Base path: `/v1`
-- Health: `GET /v1/health`
-- Profile: `GET/PATCH/DELETE /me`
-- Full route map: `README.md` and `docs/PLANNING.md`
+- Base: `/v1`  
+- Health: `GET /v1/health`  
+- Profile: `GET/PATCH/DELETE /me`  
+- Groups: `/groups`, `/groups/preview/{code}`, `/groups/join`, `/groups/{id}/dashboard`, `/groups/{id}/day-roster`, announcements, members, statistics, sessions  
+- Full map: `README.md`, `docs/PLANNING.md`
