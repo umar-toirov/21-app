@@ -409,17 +409,7 @@ class GroupService:
                     in_recovery = challenge.status == ChallengeStatus.RECOVERY
                     perfect_days = sum(1 for d in (challenge.days or []) if d.is_perfect)
 
-                pts_result = await self.db.execute(
-                    select(func.coalesce(func.sum(HpEvent.delta), 0)).where(
-                        HpEvent.user_id == gm.user_id,
-                        HpEvent.challenge_id == challenge.id,
-                        HpEvent.delta > 0,
-                    )
-                )
-                group_points = int(pts_result.scalar() or 0)
-                if group_points == 0:
-                    # Fallback when events missing: completed group days × 10
-                    group_points = sum(1 for d in (challenge.days or []) if d.is_complete) * 10
+                group_points = await self._group_points(gm.user_id, challenge)
 
             role_value = gm.role.value if hasattr(gm.role, "value") else str(gm.role).lower()
             req_match = (
@@ -447,17 +437,41 @@ class GroupService:
                 }
             )
 
+        # Rank by this group's points only (never global HP). Ties fall back to
+        # perfect days, today's completion, streak, then name so order is stable.
         members_data.sort(
             key=lambda m: (
                 -m["group_points"],
                 -m["perfect_days"],
                 -int(m["today_complete"]),
+                -m["current_streak"],
+                (m["full_name"] or "").lower(),
             )
         )
         for i, row in enumerate(members_data):
             row["rank"] = i + 1
             row["rank_delta"] = 0
         return members_data
+
+    async def _group_points(self, user_id: UUID, challenge: Challenge) -> int:
+        """Points a member earned inside this group's challenge only.
+
+        Sums that challenge's point events (daily rewards and missed-day
+        penalties), so it is independent of the member's personal challenge and
+        global HP. Never below zero. Challenges that predate point events fall
+        back to completed days x 10.
+        """
+        total, events = (
+            await self.db.execute(
+                select(func.coalesce(func.sum(HpEvent.delta), 0), func.count(HpEvent.id)).where(
+                    HpEvent.user_id == user_id,
+                    HpEvent.challenge_id == challenge.id,
+                )
+            )
+        ).one()
+        if not events:
+            return sum(1 for d in (challenge.days or []) if d.is_complete) * 10
+        return max(0, int(total or 0))
 
     async def get_dashboard(self, group_id: UUID, requester_id: UUID) -> dict:
         group, member, is_leader = await self._ensure_membership(group_id, requester_id)
@@ -630,18 +644,9 @@ class GroupService:
                 else:
                     personal_tasks.append(entry)
 
-        group_points = 0
-        if challenge:
-            pts_result = await self.db.execute(
-                select(func.coalesce(func.sum(HpEvent.delta), 0)).where(
-                    HpEvent.user_id == member_id,
-                    HpEvent.challenge_id == challenge.id,
-                    HpEvent.delta > 0,
-                )
-            )
-            group_points = int(pts_result.scalar() or 0)
-            if group_points == 0:
-                group_points = sum(1 for d in (challenge.days or []) if d.is_complete) * 10
+        group_points = (
+            await self._group_points(member_id, challenge) if challenge else 0
+        )
 
         return {
             "user_id": profile.id,

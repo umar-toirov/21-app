@@ -172,7 +172,7 @@ class GroupStatGrid extends StatelessWidget {
           Icons.check_circle_rounded, AppColors.teal),
       _StatItem(
           'Average Points',
-          '${stats['average_group_points'] ?? stats['average_hp'] ?? 0}',
+          '${stats['average_group_points'] ?? 0}',
           Icons.bolt_rounded,
           AppColors.orange),
       _StatItem('Your Rank', '#${stats['your_rank'] ?? '-'}',
@@ -588,7 +588,7 @@ class GroupPodium extends StatelessWidget {
                     const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
               ),
               Text(
-                '${m['group_points'] ?? m['hp'] ?? 0} pts',
+                '${m['group_points'] ?? 0} pts',
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w700,

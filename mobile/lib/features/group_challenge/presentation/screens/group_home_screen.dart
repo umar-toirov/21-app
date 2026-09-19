@@ -554,7 +554,7 @@ class _StatisticsTab extends ConsumerWidget {
                 Expanded(
                   child: _StatHighlight(
                     label: 'Avg Points',
-                    value: '${stats['average_group_points'] ?? stats['average_hp'] ?? 0}',
+                    value: '${stats['average_group_points'] ?? 0}',
                     icon: Icons.bolt_rounded,
                     color: AppColors.orange,
                   ),
