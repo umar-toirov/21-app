@@ -105,7 +105,7 @@ class GroupListScreen extends ConsumerWidget {
                                         const SizedBox(height: 4),
                                         Text(
                                           '${g.memberCount} members · Day ${g.currentDay}/${g.durationDays}',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontWeight: FontWeight.w600,
                                             color: AppColors.textSecondary,
                                             fontSize: 12,
@@ -133,7 +133,7 @@ class GroupListScreen extends ConsumerWidget {
                                       ],
                                     ),
                                   ),
-                                  const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+                                  Icon(Icons.chevron_right_rounded, color: AppColors.muted),
                                 ],
                               ),
                             ),

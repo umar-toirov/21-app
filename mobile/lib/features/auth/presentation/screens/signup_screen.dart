@@ -83,7 +83,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Join ILM HUB and start building discipline',
                 style: TextStyle(
                   color: AppColors.textSecondary,

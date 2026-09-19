@@ -97,9 +97,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final isCommit = _step == 4;
 
     return Scaffold(
-      backgroundColor: isCommit ? const Color(0xFFFFF8F2) : null,
+      backgroundColor: isCommit ? AppColors.orangeSoft : null,
       appBar: AppBar(
-        backgroundColor: isCommit ? const Color(0xFFFFF8F2) : null,
+        backgroundColor: isCommit ? AppColors.orangeSoft : null,
         title: Text('Setup · ${_steps[_step]}'),
         leading: _step > 0
             ? IconButton(
@@ -109,16 +109,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       ),
       body: Container(
         decoration: isCommit
-            ? const BoxDecoration(
+            ? BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0xFFFFF8F2),
-                    Color(0xFFFFF1E6),
-                    Color(0xFFFFFFFF),
+                    AppColors.orangeSoft,
+                    AppColors.orangeSoft,
+                    AppColors.background,
                   ],
-                  stops: [0, 0.4, 1],
+                  stops: const [0, 0.4, 1],
                 ),
               )
             : null,
@@ -203,7 +203,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           Text('Choose your goal',
               style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'What are you building discipline for?',
             style: TextStyle(
                 fontWeight: FontWeight.w700, color: AppColors.textSecondary),
@@ -301,7 +301,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         Text('Foundation tasks',
             style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Optional habits that support every challenge. You can include them or skip.',
           style: TextStyle(
               color: AppColors.textSecondary, fontWeight: FontWeight.w600),
@@ -477,7 +477,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
         ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.1, end: 0),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Review your plan, then lock Day 1.',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -520,7 +520,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         SoftCard(
           color: AppColors.cream,
           borderColor: AppColors.gold.withValues(alpha: 0.35),
-          child: const Text(
+          child: Text(
             'Discipline is choosing between what you want now and what you want most.',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -532,7 +532,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
         ).animate().fadeIn(delay: 220.ms),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'By tapping "I Commit", you begin your training program.',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -588,7 +588,7 @@ class _CommitSummaryRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textSecondary,
               ),
@@ -596,7 +596,7 @@ class _CommitSummaryRow extends StatelessWidget {
           ),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
@@ -638,7 +638,7 @@ class _DurationCard extends StatelessWidget {
               days == 21
                   ? 'Classic discipline sprint'
                   : 'Extended mastery program',
-              style: const TextStyle(
+              style: TextStyle(
                   fontWeight: FontWeight.w700, color: AppColors.textSecondary),
             ),
           ],

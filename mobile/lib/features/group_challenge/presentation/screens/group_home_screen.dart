@@ -94,10 +94,10 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
             const SizedBox(height: 16),
             Text(
               code,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 32, letterSpacing: 4, color: AppColors.navy),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 32, letterSpacing: 4, color: AppColors.navy),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Share code or QR with participants',
               style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
             ),
@@ -454,7 +454,7 @@ class _LeaderDayRosterSection extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               'Could not load roster: $e',
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             TextButton(
               onPressed: () => ref.invalidate(groupDayRosterProvider((groupId: groupId, date: dateKey))),
@@ -498,7 +498,7 @@ class _LeaderboardTab extends StatelessWidget {
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Ranked by group points from this program’s tasks',
             style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
           ),
@@ -677,7 +677,7 @@ class _StatHighlight extends StatelessWidget {
           GlossyIcon(icon: icon, size: 32, color: color),
           const SizedBox(height: 10),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 22)),
-          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12)),
+          Text(label, style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12)),
         ],
       ),
     );
@@ -711,9 +711,9 @@ class _PersonHighlight extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12)),
+                Text(title, style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12)),
                 Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                Text(detail, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                Text(detail, style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
               ],
             ),
           ),

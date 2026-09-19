@@ -351,27 +351,3 @@ class CertificateModel {
         issuedAt: json['issued_at'] as String,
       );
 }
-
-class PaymentModel {
-  final String id;
-  final int amountUzs;
-  final String status;
-  final String? provider;
-  final String createdAt;
-
-  PaymentModel({
-    required this.id,
-    required this.amountUzs,
-    required this.status,
-    this.provider,
-    required this.createdAt,
-  });
-
-  factory PaymentModel.fromJson(Map<String, dynamic> json) => PaymentModel(
-        id: json['id'] as String,
-        amountUzs: json['amount_uzs'] as int,
-        status: json['status'] as String,
-        provider: json['provider'] as String?,
-        createdAt: json['created_at'] as String,
-      );
-}

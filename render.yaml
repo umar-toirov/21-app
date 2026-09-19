@@ -20,6 +20,4 @@ services:
         sync: false
       - key: INTERNAL_JOB_SECRET
         sync: false
-      - key: CHALLENGE_PRICE_UZS
-        value: "99000"
     healthCheckPath: /v1/health

@@ -134,25 +134,6 @@ class HpEventResponse(ORMModel):
     created_at: datetime
 
 
-# --- Payments ---
-class PaymentIntentRequest(BaseModel):
-    challenge_id: UUID | None = None
-
-
-class PaymentResponse(ORMModel):
-    id: UUID
-    amount_uzs: int
-    status: str
-    provider: str | None
-    created_at: datetime
-    completed_at: datetime | None
-
-
-class PaymentWebhookPayload(BaseModel):
-    provider_ref: str
-    status: str
-
-
 # --- Badges & Certificates ---
 class BadgeResponse(ORMModel):
     id: int

@@ -70,13 +70,30 @@ class BrandLogo extends StatelessWidget {
     final isFull = variant == BrandLogoVariant.full ||
         variant == BrandLogoVariant.fullDark ||
         variant == BrandLogoVariant.auth;
-    return Image.asset(
+    final image = Image.asset(
       _asset,
       height: size,
       width: isFull ? size * 2.6 : size,
       fit: BoxFit.contain,
       filterQuality: FilterQuality.high,
     );
+    // The wordmark is dark navy; give it a light plate on dark backgrounds.
+    if (isFull && AppColors.isDark) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2F3F6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Image.asset(
+          _asset,
+          height: size * 0.8,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+        ),
+      );
+    }
+    return image;
   }
 }
 
@@ -234,7 +251,7 @@ class _OutlinedDuoButtonState extends State<_OutlinedDuoButton> {
         ),
         alignment: Alignment.center,
         child: widget.isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 22,
                 width: 22,
                 child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.textPrimary),
@@ -249,7 +266,7 @@ class _OutlinedDuoButtonState extends State<_OutlinedDuoButton> {
                   ],
                   Text(
                     widget.label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
@@ -302,7 +319,7 @@ class StatChip extends StatelessWidget {
             ),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textSecondary,
@@ -490,7 +507,7 @@ class EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
@@ -716,7 +733,7 @@ class DayProgressRing extends StatelessWidget {
             children: [
               Text(
                 'Day $currentDay',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
@@ -724,7 +741,7 @@ class DayProgressRing extends StatelessWidget {
               ),
               Text(
                 '/ $totalDays',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textSecondary,
@@ -757,10 +774,10 @@ class _MountainPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final sky = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFFFFF0E8), Color(0xFFF7F8FA)],
+        colors: [AppColors.orangeSoft, AppColors.background],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, sky);
 

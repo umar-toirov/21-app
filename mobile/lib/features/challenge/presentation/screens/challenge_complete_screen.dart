@@ -18,11 +18,11 @@ class ChallengeCompleteScreen extends ConsumerWidget {
     return Scaffold(
       body: Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFF4E0), AppColors.background],
+            colors: [AppColors.goldSoft, AppColors.background],
           ),
         ),
         child: SafeArea(
@@ -46,7 +46,7 @@ class ChallengeCompleteScreen extends ConsumerWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'You built real discipline with ILM HUB.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -77,7 +77,7 @@ class ChallengeCompleteScreen extends ConsumerWidget {
                           ),
                           Text(
                             '${latest.durationDays}-day program',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w600,
                             ),

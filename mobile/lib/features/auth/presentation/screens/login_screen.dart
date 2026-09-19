@@ -76,7 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Log in to continue your 21 journey',
                 style: TextStyle(
                   color: AppColors.textSecondary,

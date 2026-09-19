@@ -16,7 +16,7 @@ class LandingScreen extends ConsumerWidget {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
         ),
         child: SafeArea(
@@ -27,12 +27,7 @@ class LandingScreen extends ConsumerWidget {
                 const SizedBox(height: 10),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: Image.asset(
-                    'assets/brand/logo_auth.png',
-                    height: 36,
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.high,
-                  ),
+                  child: const BrandLogo(size: 36, variant: BrandLogoVariant.full),
                 ).animate().fadeIn(duration: 450.ms),
                 const SizedBox(height: 36),
                 Text(
@@ -53,7 +48,7 @@ class LandingScreen extends ConsumerWidget {
                       duration: 700.ms,
                     ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   '21-Day Challenge\nfor Real Discipline',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -74,7 +69,7 @@ class LandingScreen extends ConsumerWidget {
                   ),
                 ).animate().fadeIn(delay: 120.ms),
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'Build daily habits, protect your streak, and finish with proof.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -119,7 +114,7 @@ class LandingScreen extends ConsumerWidget {
                 SoftCard(
                   color: AppColors.navy.withValues(alpha: 0.04),
                   borderColor: AppColors.navy.withValues(alpha: 0.12),
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.groups_rounded, color: AppColors.navy),
                       SizedBox(width: 12),
@@ -149,7 +144,7 @@ class LandingScreen extends ConsumerWidget {
                 const SizedBox(height: 10),
                 TextButton(
                   onPressed: () => context.push(AppRoutes.login),
-                  child: const Text(
+                  child: Text(
                     'I already have an account',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
@@ -216,7 +211,7 @@ class _LandingBenefit extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 body,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: AppColors.textSecondary,
                   height: 1.35,

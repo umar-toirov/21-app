@@ -23,7 +23,6 @@ import '../../features/group_challenge/presentation/screens/join_group_screen.da
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/profile/presentation/screens/badges_screen.dart';
 import '../../features/profile/presentation/screens/certificates_screen.dart';
-import '../../features/profile/presentation/screens/payment_history_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/shell/presentation/main_shell.dart';
@@ -50,7 +49,6 @@ class AppRoutes {
   static const settings = '/settings';
   static const certificates = '/certificates';
   static const badges = '/badges';
-  static const payments = '/payments';
 }
 
 /// Notifies go_router when Supabase auth session changes (e.g. Google redirect).
@@ -172,7 +170,6 @@ GoRouter createRouter({Listenable? refreshListenable}) {
       GoRoute(path: AppRoutes.settings, builder: (_, __) => const SettingsScreen()),
       GoRoute(path: AppRoutes.certificates, builder: (_, __) => const CertificatesScreen()),
       GoRoute(path: AppRoutes.badges, builder: (_, __) => const BadgesScreen()),
-      GoRoute(path: AppRoutes.payments, builder: (_, __) => const PaymentHistoryScreen()),
       ShellRoute(
         builder: (_, __, child) => MainShell(child: child),
         routes: [

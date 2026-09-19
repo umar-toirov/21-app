@@ -40,7 +40,7 @@ class ChallengeDashboardScreen extends ConsumerWidget {
                       ? 'Server error — tap retry. If it keeps failing, the backend may need a restart.'
                       : e.toString(),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 16),
                 PrimaryButton(
@@ -115,16 +115,11 @@ class _HomeContent extends StatelessWidget {
           children: [
             Row(
               children: [
-                Image.asset(
-                  'assets/brand/logo_auth.png',
-                  height: 34,
-                  fit: BoxFit.contain,
-                  filterQuality: FilterQuality.high,
-                ),
+                const BrandLogo(size: 34, variant: BrandLogoVariant.full),
                 const Spacer(),
                 IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.notifications_none_rounded),
+                  onPressed: () => context.push(AppRoutes.settings),
+                  icon: const Icon(Icons.settings_outlined),
                 ),
                 GestureDetector(
                   onTap: () => context.go('${AppRoutes.home}/profile'),
@@ -248,11 +243,11 @@ class _HomeContent extends StatelessWidget {
             if (focus?.quote != null) ...[
               const SizedBox(height: 18),
               SoftCard(
-                color: const Color(0xFFFFF7F0),
+                color: AppColors.orangeSoft,
                 borderColor: AppColors.orange.withValues(alpha: 0.2),
                 child: Text(
                   focus!.quote!,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w700,
                     fontStyle: FontStyle.italic,
@@ -328,7 +323,7 @@ class _PersonalProgramCard extends StatelessWidget {
   final VoidCallback? onTasks;
 
   static const _accent = AppColors.orange;
-  static const _accentSoft = Color(0xFFFFF0E8);
+  static Color get _accentSoft => AppColors.orangeSoft;
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +332,7 @@ class _PersonalProgramCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _ProgramBadge(
+          _ProgramBadge(
             label: 'Personal',
             color: _accent,
             softColor: _accentSoft,
@@ -345,7 +340,7 @@ class _PersonalProgramCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           if (c == null) ...[
-            const Row(
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _SquareProgramIcon(
@@ -446,8 +441,8 @@ class _GroupProgramCard extends ConsumerWidget {
   final VoidCallback? onOpen;
   final VoidCallback? onTasks;
 
-  static const _accent = AppColors.navy;
-  static const _accentSoft = Color(0xFFE8F0FF);
+  static Color get _accent => AppColors.navy;
+  static Color get _accentSoft => AppColors.blueSoft;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -468,7 +463,7 @@ class _GroupProgramCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _ProgramBadge(
+          _ProgramBadge(
             label: 'Group',
             color: _accent,
             softColor: _accentSoft,
@@ -476,7 +471,7 @@ class _GroupProgramCard extends ConsumerWidget {
           ),
           const SizedBox(height: 14),
           if (c == null) ...[
-            const Row(
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _SquareProgramIcon(
@@ -724,7 +719,7 @@ class _ActiveProgramBody extends StatelessWidget {
                   name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                     color: AppColors.textPrimary,
@@ -758,7 +753,7 @@ class _ActiveProgramBody extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       '$pct%',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -823,7 +818,7 @@ class _MemberStackRow extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _palette[i % _palette.length],
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: AppColors.surface, width: 2),
                     ),
                     child: Center(
                       child: Text(
@@ -846,7 +841,7 @@ class _MemberStackRow extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: softAccent,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: AppColors.surface, width: 2),
                     ),
                     child: Center(
                       child: Text(
@@ -866,7 +861,7 @@ class _MemberStackRow extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           '$memberCount members',
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 12,
             color: AppColors.textSecondary,

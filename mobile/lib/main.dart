@@ -23,5 +23,7 @@ Future<void> main() async {
     ),
   );
 
+  await loadSavedThemeMode();
+
   runApp(const ProviderScope(child: IlmModeApp()));
 }

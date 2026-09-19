@@ -246,22 +246,6 @@ class ApiRepository {
     final res = await _dio.get('/me/certificates');
     return (res.data as List).map((e) => CertificateModel.fromJson(e)).toList();
   }
-
-  Future<List<PaymentModel>> getPayments() async {
-    final res = await _dio.get('/payments');
-    return (res.data as List).map((e) => PaymentModel.fromJson(e)).toList();
-  }
-
-  Future<PaymentModel> createPaymentIntent({String? challengeId}) async {
-    final res = await _dio.post('/payments/intent', data: {
-      if (challengeId != null) 'challenge_id': challengeId,
-    });
-    return PaymentModel.fromJson(res.data as Map<String, dynamic>);
-  }
-
-  Future<void> simulatePayment(String paymentId) async {
-    await _dio.post('/payments/$paymentId/simulate-complete');
-  }
 }
 
 final apiRepositoryProvider = Provider<ApiRepository>((ref) {
@@ -313,10 +297,6 @@ final badgesProvider = FutureProvider<List<BadgeModel>>((ref) async {
 
 final certificatesProvider = FutureProvider<List<CertificateModel>>((ref) async {
   return ref.watch(apiRepositoryProvider).getCertificates();
-});
-
-final paymentsProvider = FutureProvider<List<PaymentModel>>((ref) async {
-  return ref.watch(apiRepositoryProvider).getPayments();
 });
 
 final personalStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {

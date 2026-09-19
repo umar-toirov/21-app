@@ -212,7 +212,7 @@ class _PersonalStatsTab extends ConsumerWidget {
                                   .replaceAll('base', 'Starting score')
                                   .replaceAll('completed days', 'Daily completions')
                                   .toUpperCase(),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12,
                                 color: AppColors.textSecondary,
@@ -273,7 +273,7 @@ class _PersonalStatsTab extends ConsumerWidget {
                             (i < days.length && days[i]['label'] != null)
                                 ? '${days[i]['label']}'
                                 : 'D${i + 1}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: AppColors.muted,
@@ -325,7 +325,7 @@ class _OverviewCard extends StatelessWidget {
             ),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textSecondary,

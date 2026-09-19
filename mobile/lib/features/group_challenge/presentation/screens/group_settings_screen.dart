@@ -122,7 +122,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                 const SizedBox(height: 12),
                 Text(
                   invite,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 28, letterSpacing: 3, color: AppColors.navy),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 28, letterSpacing: 3, color: AppColors.navy),
                 ),
                 const SizedBox(height: 12),
                 PrimaryButton(

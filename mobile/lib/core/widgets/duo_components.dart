@@ -28,7 +28,7 @@ class DuoTopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: const Border(
+        border: Border(
           bottom: BorderSide(color: AppColors.borderStrong, width: 2),
         ),
         boxShadow: [
@@ -45,21 +45,21 @@ class DuoTopBar extends StatelessWidget {
             icon: Icons.local_fire_department_rounded,
             value: '$streak',
             color: AppColors.orange,
-            glow: const Color(0xFFFFE0D1),
+            glow: AppColors.orangeSoft,
           ),
           const SizedBox(width: 10),
           _Gem(
             icon: Icons.favorite_rounded,
             value: '$hp',
             color: AppColors.hp,
-            glow: const Color(0xFFFFE0E0),
+            glow: AppColors.dangerSoft,
           ),
           const SizedBox(width: 10),
           _Gem(
             icon: Icons.bolt_rounded,
             value: '$score',
             color: AppColors.goldDepth,
-            glow: const Color(0xFFFFF3D0),
+            glow: AppColors.goldSoft,
           ),
           const Spacer(),
           GestureDetector(
@@ -69,10 +69,10 @@ class DuoTopBar extends StatelessWidget {
               height: 42,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [AppColors.teal, AppColors.blue],
                 ),
-                border: Border.all(color: Colors.white, width: 3),
+                border: Border.all(color: AppColors.surface, width: 3),
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.teal.withValues(alpha: 0.35),
@@ -386,7 +386,7 @@ class _PathLessonNodeState extends State<PathLessonNode> {
           ),
         );
       case PathNodeState.locked:
-        fill = const Color(0xFFE8ECF1);
+        fill = AppColors.border;
         depth = const Color(0xFFC5CDD8);
         face = Icon(Icons.lock_rounded, color: AppColors.muted.withValues(alpha: 0.9), size: 30);
     }
@@ -442,7 +442,7 @@ class _PathLessonNodeState extends State<PathLessonNode> {
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.borderStrong, width: 2.5),
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(color: AppColors.borderStrong, offset: Offset(0, 3), blurRadius: 0),
               ],
             ),
@@ -503,7 +503,7 @@ class TodayLessonPanel extends StatelessWidget {
             blurRadius: 24,
             offset: const Offset(0, -4),
           ),
-          const BoxShadow(
+          BoxShadow(
             color: AppColors.borderStrong,
             offset: Offset(0, 5),
             blurRadius: 0,
@@ -535,7 +535,7 @@ class TodayLessonPanel extends StatelessWidget {
               const Spacer(),
               Text(
                 '$done/${tasks.length}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: AppColors.textSecondary,
                 ),

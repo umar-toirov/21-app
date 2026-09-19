@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/mockup_widgets.dart';
@@ -212,7 +213,7 @@ class GroupStatGrid extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       item.label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
@@ -269,7 +270,7 @@ class GroupProgressCard extends StatelessWidget {
                             fontWeight: FontWeight.w700, fontSize: 16)),
                     Text(
                       '${percent.toStringAsFixed(0)}% completed today',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.w700),
                     ),
@@ -454,7 +455,7 @@ class GroupActivityFeed extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (feed.isEmpty) {
-      return const SoftCard(
+      return SoftCard(
         child: Padding(
           padding: EdgeInsets.all(20),
           child: Text(
@@ -505,7 +506,7 @@ class GroupActivityFeed extends StatelessWidget {
                         if (timeLabel.isNotEmpty)
                           Text(
                             timeLabel,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -588,7 +589,7 @@ class GroupPodium extends StatelessWidget {
               ),
               Text(
                 '${m['group_points'] ?? m['hp'] ?? 0} pts',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w700,
                   fontSize: 11,
@@ -699,7 +700,7 @@ class GroupLeaderboardTile extends StatelessWidget {
                     Text(
                       '${member['group_points'] ?? 0} pts · '
                       'Streak ${member['current_streak']}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textSecondary,
@@ -755,7 +756,7 @@ class AttendanceHeatmap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (days.isEmpty) {
-      return const Text('No attendance data yet.',
+      return Text('No attendance data yet.',
           style: TextStyle(color: AppColors.textSecondary));
     }
 
@@ -806,7 +807,7 @@ class AttendanceHeatmap extends StatelessWidget {
                 color: c, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 4),
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textSecondary)),
@@ -832,7 +833,7 @@ class LiveSessionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const GlossyIcon(
+              GlossyIcon(
                   icon: Icons.videocam_rounded,
                   size: 40,
                   color: AppColors.navy),
@@ -856,7 +857,7 @@ class LiveSessionCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               DateFormat('EEE, MMM d · h:mm a').format(scheduled.toLocal()),
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.textSecondary, fontWeight: FontWeight.w700),
             ),
           ],
@@ -864,7 +865,12 @@ class LiveSessionCard extends StatelessWidget {
             const SizedBox(height: 14),
             PrimaryButton(
               label: 'Join Session',
-              onPressed: () {},
+              onPressed: () async {
+                final uri = Uri.tryParse('${s['meeting_url']}');
+                if (uri != null) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
             ),
           ],
         ],
@@ -878,7 +884,7 @@ class GroupLoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -908,7 +914,7 @@ class GroupErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const GlossyIcon(
+            GlossyIcon(
                 icon: Icons.cloud_off_rounded,
                 size: 56,
                 color: AppColors.muted),
@@ -918,7 +924,7 @@ class GroupErrorState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary)),
+                style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 20),
             PrimaryButton(label: 'Try again', onPressed: onRetry),
           ],
@@ -969,7 +975,7 @@ class GroupMemberActionsRoster extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
               color: AppColors.textSecondary, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
@@ -999,7 +1005,7 @@ class GroupMemberActionsRoster extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (members.isEmpty)
-          const SoftCard(
+          SoftCard(
             child: Text(
               'No members yet.',
               style: TextStyle(
@@ -1053,7 +1059,7 @@ class GroupMemberActionsRoster extends StatelessWidget {
                                   tasks.isEmpty
                                       ? 'No tasks'
                                       : '$done/${tasks.length} tasks${dayComplete ? ' · day complete' : ''}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.textSecondary,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 12,

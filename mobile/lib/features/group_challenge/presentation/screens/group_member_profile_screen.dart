@@ -103,7 +103,7 @@ class GroupMemberProfileScreen extends ConsumerWidget {
                     Text(
                       'Day ${challenge['current_day'] ?? 1} · '
                       '${(challenge['completion_percent'] as num?)?.toStringAsFixed(0) ?? 0}% complete',
-                      style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
+                      style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 12),
                     AnimatedFillBar(
@@ -200,7 +200,7 @@ class _MiniStat extends StatelessWidget {
       child: Column(
         children: [
           Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: color)),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.textSecondary)),
+          Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -218,7 +218,7 @@ class _AchievementRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.navy)),
+        Text(value, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.navy)),
       ],
     );
   }

@@ -51,7 +51,7 @@ class ProfileScreen extends ConsumerWidget {
                               height: 108,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: const LinearGradient(
+                                gradient: LinearGradient(
                                   colors: [AppColors.teal, AppColors.blue],
                                 ),
                                 boxShadow: [
@@ -85,11 +85,11 @@ class ProfileScreen extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                   color: AppColors.gold,
                                   borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: Colors.white, width: 2),
+                                  border: Border.all(color: AppColors.surface, width: 2),
                                 ),
                                 child: Text(
                                   'LV ${(profile.hp / 50).floor().clamp(1, 99)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 11,
                                     color: AppColors.navy,
@@ -106,7 +106,7 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                         Text(
                           profile.email,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textSecondary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -158,13 +158,6 @@ class ProfileScreen extends ConsumerWidget {
                     subtitle: 'Collection & locked rewards',
                     color: AppColors.orange,
                     onTap: () => context.push(AppRoutes.badges),
-                  ),
-                  _MenuTile(
-                    icon: Icons.receipt_long_rounded,
-                    title: 'Payment History',
-                    subtitle: 'Challenges & receipts',
-                    color: AppColors.teal,
-                    onTap: () => context.push(AppRoutes.payments),
                   ),
                   const SizedBox(height: 8),
                   badgesAsync.when(
@@ -275,7 +268,7 @@ class _GemStat extends StatelessWidget {
             ),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textSecondary,
@@ -324,14 +317,14 @@ class _MenuTile extends StatelessWidget {
           title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
           subtitle: Text(
             subtitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
               fontSize: 12,
             ),
           ),
           trailing:
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+              Icon(Icons.chevron_right_rounded, color: AppColors.muted),
           onTap: onTap,
         ),
       ),

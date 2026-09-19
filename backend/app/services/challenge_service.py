@@ -21,8 +21,6 @@ from app.models.profile import (
     Goal,
     Group,
     HpEvent,
-    Payment,
-    PaymentStatus,
     Profile,
     Task,
     TaskCompletion,
@@ -651,56 +649,6 @@ class DisciplineScoreService:
         score = max(0, min(1000, score))
         profile.discipline_score = score
         return score
-
-
-class PaymentService:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def create_intent(self, profile: Profile, challenge_id: UUID | None = None) -> Payment:
-        key = f"{profile.id}-{challenge_id or 'new'}-{secrets.token_hex(4)}"
-        payment = Payment(
-            user_id=profile.id,
-            amount_uzs=settings.challenge_price_uzs,
-            status=PaymentStatus.PENDING,
-            idempotency_key=key,
-        )
-        self.db.add(payment)
-        await self.db.flush()
-
-        if challenge_id:
-            result = await self.db.execute(
-                select(Challenge).where(Challenge.id == challenge_id, Challenge.user_id == profile.id)
-            )
-            challenge = result.scalar_one_or_none()
-            if challenge:
-                challenge.payment_id = payment.id
-
-        return payment
-
-    async def complete_payment(self, payment_id: UUID, provider_ref: str) -> Payment:
-        result = await self.db.execute(select(Payment).where(Payment.id == payment_id))
-        payment = result.scalar_one_or_none()
-        if not payment:
-            raise NotFoundError("Payment")
-        if payment.status == PaymentStatus.COMPLETED:
-            return payment
-
-        payment.status = PaymentStatus.COMPLETED
-        payment.provider_ref = provider_ref
-        payment.completed_at = utcnow()
-
-        challenge_result = await self.db.execute(
-            select(Challenge).where(Challenge.payment_id == payment.id)
-        )
-        challenge = challenge_result.scalar_one_or_none()
-        if challenge and challenge.status == ChallengeStatus.PENDING_PAYMENT:
-            challenge.status = ChallengeStatus.ACTIVE
-            challenge.start_date = date.today()
-            challenge.current_day = 1
-
-        await self.db.flush()
-        return payment
 
 
 def generate_invite_code(length: int = 6) -> str:

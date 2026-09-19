@@ -187,7 +187,7 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
                     Text(
                       '${_preview!['duration_days']} days · '
                       '${_isFreedom ? 'Add your own tasks' : 'Same tasks for all'}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w600,
                       ),

@@ -27,6 +27,9 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
   List<TaskModel>? _dayTasks;
   bool _loadingDay = false;
 
+  /// Tasks ticked locally before the server confirms, so taps feel instant.
+  final Set<String> _pendingDone = {};
+
   Future<void> _loadDay(ChallengeModel challenge, int dayNumber) async {
     if (dayNumber == challenge.currentDay &&
         challenge.status != 'completed' &&
@@ -63,9 +66,10 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
   }
 
   Future<void> _toggleTask(ChallengeModel challenge, TaskModel task) async {
-    if (task.isCompleted) return;
+    if (task.isCompleted || _pendingDone.contains(task.id)) return;
     if (_selectedDay != null && _selectedDay != challenge.currentDay) return;
     HapticFeedback.mediumImpact();
+    setState(() => _pendingDone.add(task.id));
     try {
       final result = await ref.read(apiRepositoryProvider).completeTask(
             challenge.id,
@@ -73,6 +77,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
           );
       ref.invalidate(challengeDetailProvider(widget.challengeId));
       ref.invalidate(activeChallengeProvider);
+      ref.invalidate(activeProgramsProvider);
       ref.invalidate(profileProvider);
       ref.invalidate(personalStatsProvider);
       if (result['challenge_completed'] == true && mounted) {
@@ -89,7 +94,10 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        setState(() => _pendingDone.remove(task.id));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't save that. Check your connection and try again.")),
+        );
       }
     }
   }
@@ -155,8 +163,8 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                       if (isPastChallenge) ...[
                         SoftCard(
                           color: challenge.status == 'completed'
-                              ? const Color(0xFFFFF8E7)
-                              : const Color(0xFFFFF1F1),
+                              ? AppColors.cream
+                              : AppColors.dangerSoft,
                           child: Text(
                             challenge.status == 'completed'
                                 ? 'Challenge completed — review what you achieved day by day.'
@@ -223,7 +231,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                             : (dayMeta?.isLocked == true
                                 ? 'This day unlocks after midnight.'
                                 : 'What you completed on this day.'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -238,7 +246,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                           ),
                         )
                       else if (!isToday && dayMeta?.isLocked == true)
-                        const SoftCard(
+                        SoftCard(
                           child: Text(
                             'Tasks for this day will appear after 12:00 AM.',
                             style: TextStyle(
@@ -248,7 +256,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                           ),
                         )
                       else if (showTasks.isEmpty)
-                        const SoftCard(
+                        SoftCard(
                           child: Text(
                             'No task records for this day.',
                             style: TextStyle(
@@ -262,24 +270,24 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                           final t = e.value;
                           return TaskTile(
                             title: t.title,
-                            isCompleted: t.isCompleted,
+                            isCompleted:
+                                t.isCompleted || _pendingDone.contains(t.id),
                             isFoundation: t.type == 'foundation',
                             onChanged: (!isToday || t.isCompleted)
                                 ? null
                                 : (_) => _toggleTask(challenge, t),
                           )
-                              .animate(delay: (70 * e.key).ms)
-                              .fadeIn()
-                              .slideX(begin: 0.05, end: 0);
+                              .animate(delay: (30 * e.key).ms)
+                              .fadeIn(duration: 200.ms);
                         }),
                       if (challenge.quote != null && isToday) ...[
                         const SizedBox(height: 16),
                         SoftCard(
-                          color: const Color(0xFFFFF7F0),
+                          color: AppColors.orangeSoft,
                           borderColor: AppColors.orange.withValues(alpha: 0.2),
                           child: Text(
                             challenge.quote!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontStyle: FontStyle.italic,
                               height: 1.4,

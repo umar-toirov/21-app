@@ -18,7 +18,6 @@ from app.models.profile import (
     Goal,
     GroupMember,
     HpEvent,
-    Payment,
     Profile,
     UserBadge,
 )
@@ -44,9 +43,6 @@ from app.schemas.schemas import (
     LeaderboardEntry,
     OnboardingResponse,
     OnboardingStepUpdate,
-    PaymentIntentRequest,
-    PaymentResponse,
-    PaymentWebhookPayload,
     PersonalStatsResponse,
     ProfileCreate,
     ProfileResponse,
@@ -56,7 +52,6 @@ from app.schemas.schemas import (
 from app.services.challenge_service import (
     ChallengeService,
     DisciplineScoreService,
-    PaymentService,
     PERSONAL_TASK_TEMPLATES,
 )
 from app.services.group_service import GroupService
@@ -325,44 +320,6 @@ async def get_streaks(profile: Annotated[Profile, Depends(get_current_profile)])
         "perfect_weeks": profile.perfect_weeks,
         "challenges_completed": profile.challenges_completed,
     }
-
-
-# --- Payments ---
-@router.post("/payments/intent", response_model=PaymentResponse)
-async def create_payment_intent(
-    data: PaymentIntentRequest,
-    profile: Annotated[Profile, Depends(get_current_profile)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    service = PaymentService(db)
-    return await service.create_intent(profile, data.challenge_id)
-
-
-@router.get("/payments", response_model=list[PaymentResponse])
-async def payment_history(
-    profile: Annotated[Profile, Depends(get_current_profile)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    result = await db.execute(
-        select(Payment).where(Payment.user_id == profile.id).order_by(Payment.created_at.desc())
-    )
-    return result.scalars().all()
-
-
-@router.post("/payments/{payment_id}/simulate-complete", response_model=PaymentResponse)
-async def simulate_payment_complete(
-    payment_id: UUID,
-    profile: Annotated[Profile, Depends(get_current_profile)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    from app.core.config import settings
-
-    if settings.environment != "development":
-        from app.core.exceptions import ForbiddenError
-
-        raise ForbiddenError("Dev only endpoint")
-    service = PaymentService(db)
-    return await service.complete_payment(payment_id, f"DEV-{payment_id.hex[:8]}")
 
 
 # --- Statistics ---

@@ -70,13 +70,13 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
         width: double.infinity,
         height: 54,
         decoration: BoxDecoration(
-          color: _pressed ? AppColors.background : Colors.white,
+          color: _pressed ? AppColors.background : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.borderStrong, width: 1),
         ),
         alignment: Alignment.center,
         child: _loading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 22,
                 width: 22,
                 child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.blue),
@@ -90,7 +90,7 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
                     height: 22,
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'Continue with Google',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
@@ -110,7 +110,7 @@ class AuthDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
         Expanded(child: Divider(color: AppColors.borderStrong, thickness: 1.5)),
         Padding(

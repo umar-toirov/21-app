@@ -295,7 +295,7 @@ class HomeGreetingHero extends StatelessWidget {
             children: [
               Text(
                 '${_days[now.weekday - 1]}, ${_months[now.month - 1]} ${now.day}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
                   fontSize: 13,
@@ -304,7 +304,7 @@ class HomeGreetingHero extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 '$_greeting, $first',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 26,
                   height: 1.15,
@@ -454,7 +454,7 @@ class StreakCard extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               '$streak',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 28,
                 height: 1,
@@ -463,7 +463,7 @@ class StreakCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Day streak',
               style: TextStyle(
                 fontWeight: FontWeight.w500,
@@ -522,7 +522,7 @@ class TasksRingCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Tasks done',
               style: TextStyle(
                 fontWeight: FontWeight.w500,
@@ -659,7 +659,7 @@ class StatTile3D extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 22,
                 height: 1,
@@ -670,7 +670,7 @@ class StatTile3D extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,

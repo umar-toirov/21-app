@@ -1,11 +1,11 @@
 {
-    "name": "ilm_mode",
-    "short_name": "ilm_mode",
+    "name": "21",
+    "short_name": "21",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#F15A29",
+    "description": "21-day discipline challenges by ILM HUB. Build daily habits, keep your streak and grow with a group.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

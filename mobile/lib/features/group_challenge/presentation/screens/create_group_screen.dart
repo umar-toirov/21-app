@@ -178,7 +178,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
               _taskMode == 'shared'
                   ? 'Everyone uses the foundation tasks you pick below.'
                   : 'Everyone gets your foundation tasks, plus their own personal tasks.',
-              style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+              style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 20),
             const Text(

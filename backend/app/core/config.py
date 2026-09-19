@@ -18,7 +18,6 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000,http://localhost:3000"
     )
     internal_job_secret: str = "change-me-in-production"
-    challenge_price_uzs: int = 99000
     grace_hours: int = 2
 
     @property
