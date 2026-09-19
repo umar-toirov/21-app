@@ -88,13 +88,13 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Invite to Group', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+            const Text('Invite to Group', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20)),
             const SizedBox(height: 16),
             QrImageView(data: 'ilmmode://join/$code', size: 160),
             const SizedBox(height: 16),
             Text(
               code,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 32, letterSpacing: 4, color: AppColors.navy),
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 32, letterSpacing: 4, color: AppColors.navy),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -214,7 +214,7 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
                 backgroundColor: AppColors.background,
                 title: Text(
                   group['name'] as String? ?? 'Group',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 actions: [
                   IconButton(
@@ -251,7 +251,7 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
                       ),
                       labelColor: Colors.white,
                       unselectedLabelColor: AppColors.textSecondary,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                      labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                       tabs: const [
                         Tab(text: 'Home'),
                         Tab(text: 'Leaderboard'),
@@ -306,7 +306,7 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
             backgroundColor: AppColors.orange,
             onPressed: () => _postAnnouncement(true),
             icon: const Icon(Icons.campaign_rounded, color: Colors.white),
-            label: const Text('Announce', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            label: const Text('Announce', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
           );
         },
         orElse: () => null,
@@ -450,7 +450,7 @@ class _LeaderDayRosterSection extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Member actions', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+            const Text('Member actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
             const SizedBox(height: 8),
             Text(
               'Could not load roster: $e',
@@ -495,7 +495,7 @@ class _LeaderboardTab extends StatelessWidget {
         children: [
           const Text(
             'Team Leaderboard',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -538,7 +538,7 @@ class _StatisticsTab extends ConsumerWidget {
         return ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
-            const Text('Group Statistics', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+            const Text('Group Statistics', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -588,7 +588,7 @@ class _StatisticsTab extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Weekly Trend', style: TextStyle(fontWeight: FontWeight.w900)),
+                  const Text('Weekly Trend', style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
                   SizedBox(
                     height: 120,
@@ -676,7 +676,7 @@ class _StatHighlight extends StatelessWidget {
         children: [
           GlossyIcon(icon: icon, size: 32, color: color),
           const SizedBox(height: 10),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 22)),
           Text(label, style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12)),
         ],
       ),
@@ -712,7 +712,7 @@ class _PersonHighlight extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12)),
-                Text(name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 Text(detail, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
               ],
             ),

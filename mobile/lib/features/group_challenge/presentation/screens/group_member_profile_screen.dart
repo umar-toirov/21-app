@@ -60,7 +60,7 @@ class GroupMemberProfileScreen extends ConsumerWidget {
                         name.substring(0, 1).toUpperCase(),
                         style: const TextStyle(
                           fontSize: 36,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                           color: AppColors.orange,
                         ),
                       ),
@@ -68,7 +68,7 @@ class GroupMemberProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     Text(
                       '$name${isYou ? ' (you)' : ''}',
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 22),
                     ),
                   ],
                 ),
@@ -98,7 +98,7 @@ class GroupMemberProfileScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Challenge Progress', style: TextStyle(fontWeight: FontWeight.w900)),
+                    const Text('Challenge Progress', style: TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
                     Text(
                       'Day ${challenge['current_day'] ?? 1} · '
@@ -116,7 +116,7 @@ class GroupMemberProfileScreen extends ConsumerWidget {
               AttendanceHeatmap(days: heatmap),
               const SizedBox(height: 24),
               if (foundation.isNotEmpty) ...[
-                const Text('Foundation Tasks', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                const Text('Foundation Tasks', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 const SizedBox(height: 10),
                 ...foundation.map((t) {
                   final map = t as Map<String, dynamic>;
@@ -131,7 +131,7 @@ class GroupMemberProfileScreen extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               map['title'] as String? ?? '',
-                              style: const TextStyle(fontWeight: FontWeight.w800),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
                         ],
@@ -142,7 +142,7 @@ class GroupMemberProfileScreen extends ConsumerWidget {
               ],
               if (personal.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                const Text('Personal Tasks', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                const Text('Personal Tasks', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 const SizedBox(height: 10),
                 ...personal.map((t) {
                   final map = t as Map<String, dynamic>;
@@ -157,7 +157,7 @@ class GroupMemberProfileScreen extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               map['title'] as String? ?? '',
-                              style: const TextStyle(fontWeight: FontWeight.w800),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
                         ],
@@ -199,7 +199,7 @@ class _MiniStat extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       child: Column(
         children: [
-          Text(value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: color)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: color)),
           Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.textSecondary)),
         ],
       ),
@@ -218,7 +218,7 @@ class _AchievementRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.navy)),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.navy)),
       ],
     );
   }

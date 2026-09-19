@@ -65,7 +65,7 @@ class ChallengeHistoryScreen extends ConsumerWidget {
                           children: [
                             Text(
                               c.name,
-                              style: const TextStyle(fontWeight: FontWeight.w900),
+                              style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 4),
                             Text(

@@ -129,7 +129,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onPressed: () => context.push(AppRoutes.forgotPassword),
                   child: const Text(
                     'Forgot password?',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -146,7 +146,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onPressed: () => context.push(AppRoutes.signup),
                 child: const Text(
                   'New here? Create an account',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ],

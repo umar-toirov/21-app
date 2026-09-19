@@ -120,7 +120,7 @@ class _Gem extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               fontSize: 15,
               color: color,
             ),
@@ -175,7 +175,7 @@ class UnitBanner extends StatelessWidget {
             title.toUpperCase(),
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.85),
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               fontSize: 12,
               letterSpacing: 1.2,
             ),
@@ -185,7 +185,7 @@ class UnitBanner extends StatelessWidget {
             subtitle,
             style: const TextStyle(
               color: Colors.white,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               fontSize: 22,
             ),
           ),
@@ -381,7 +381,7 @@ class _PathLessonNodeState extends State<PathLessonNode> {
           '${widget.day}',
           style: const TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             fontSize: 28,
           ),
         );
@@ -450,7 +450,7 @@ class _PathLessonNodeState extends State<PathLessonNode> {
               'START',
               style: TextStyle(
                 color: AppColors.orange,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
                 fontSize: 13,
                 letterSpacing: 1,
               ),
@@ -526,7 +526,7 @@ class TodayLessonPanel extends StatelessWidget {
                   'TODAY',
                   style: TextStyle(
                     color: AppColors.orange,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     fontSize: 11,
                     letterSpacing: 0.8,
                   ),
@@ -536,7 +536,7 @@ class TodayLessonPanel extends StatelessWidget {
               Text(
                 '$done/${tasks.length}',
                 style: const TextStyle(
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -546,7 +546,7 @@ class TodayLessonPanel extends StatelessWidget {
           Text(
             mission,
             style: const TextStyle(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               fontSize: 18,
               height: 1.25,
             ),
@@ -583,61 +583,6 @@ class AmbientBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFFFF7F2),
-                  Color(0xFFF7F8FA),
-                  Color(0xFFEEF9F8),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          top: -40,
-          right: -30,
-          child: _Blob(color: AppColors.orange.withValues(alpha: 0.12), size: 160),
-        ),
-        Positioned(
-          top: 180,
-          left: -50,
-          child: _Blob(color: AppColors.teal.withValues(alpha: 0.12), size: 140),
-        ),
-        Positioned(
-          bottom: 120,
-          right: -20,
-          child: _Blob(color: AppColors.gold.withValues(alpha: 0.15), size: 120),
-        ),
-        child,
-      ],
-    );
-  }
-}
-
-class _Blob extends StatelessWidget {
-  const _Blob({required this.color, required this.size});
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-    )
-        .animate(onPlay: (c) => c.repeat(reverse: true))
-        .scale(
-          begin: const Offset(1, 1),
-          end: const Offset(1.08, 1.08),
-          duration: 3200.ms,
-        );
+    return ColoredBox(color: AppColors.background, child: child);
   }
 }

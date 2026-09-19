@@ -100,7 +100,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text('Group Name', style: TextStyle(fontWeight: FontWeight.w800)),
+          const Text('Group Name', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           TextField(
             controller: _nameCtrl,
@@ -113,7 +113,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
             onPressed: () => _saveName(group),
           ),
           const SizedBox(height: 28),
-          const Text('Invite Members', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+          const Text('Invite Members', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: 12),
           SoftCard(
             child: Column(
@@ -122,7 +122,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                 const SizedBox(height: 12),
                 Text(
                   invite,
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 28, letterSpacing: 3, color: AppColors.navy),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 28, letterSpacing: 3, color: AppColors.navy),
                 ),
                 const SizedBox(height: 12),
                 PrimaryButton(
@@ -139,7 +139,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
             ),
           ),
           const SizedBox(height: 28),
-          const Text('Participants', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+          const Text('Participants', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: 12),
           ...members.map((m) {
             final map = m as Map<String, dynamic>;
@@ -161,7 +161,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                         children: [
                           Text(
                             '${map['full_name']}${isYou ? ' (you)' : ''}',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           if (isLeader)
                             const Text('Leader', style: TextStyle(color: AppColors.orange, fontWeight: FontWeight.w700, fontSize: 12)),

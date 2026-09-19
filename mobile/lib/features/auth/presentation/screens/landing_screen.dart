@@ -17,16 +17,7 @@ class LandingScreen extends ConsumerWidget {
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFF8F2),
-              Color(0xFFFFFFFF),
-              Color(0xFFF3F7FF),
-            ],
-            stops: [0, 0.45, 1],
-          ),
+          color: AppColors.surface,
         ),
         child: SafeArea(
           child: SingleChildScrollView(
@@ -48,7 +39,7 @@ class LandingScreen extends ConsumerWidget {
                   '21',
                   style: Theme.of(context).textTheme.displayLarge?.copyWith(
                         color: AppColors.orange,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         fontSize: 96,
                         height: 0.85,
                         letterSpacing: -4,
@@ -66,7 +57,7 @@ class LandingScreen extends ConsumerWidget {
                   '21-Day Challenge\nfor Real Discipline',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     fontSize: 26,
                     height: 1.2,
                     color: AppColors.textPrimary,
@@ -77,7 +68,7 @@ class LandingScreen extends ConsumerWidget {
                   'by ILM HUB',
                   style: TextStyle(
                     color: AppColors.teal,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: 1.6,
                     fontSize: 13,
                   ),
@@ -98,7 +89,7 @@ class LandingScreen extends ConsumerWidget {
                   child: Text(
                     'What you get',
                     style: TextStyle(
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       fontSize: 16,
                     ),
                   ),
@@ -161,7 +152,7 @@ class LandingScreen extends ConsumerWidget {
                   child: const Text(
                     'I already have an account',
                     style: TextStyle(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -218,7 +209,7 @@ class _LandingBenefit extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   fontSize: 15,
                 ),
               ),

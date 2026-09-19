@@ -256,7 +256,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         g.name,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           color: selected ? color : AppColors.textPrimary,
                         ),
                       ),
@@ -312,7 +312,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             contentPadding: EdgeInsets.zero,
             title: const Text(
               'Include foundation tasks',
-              style: TextStyle(fontWeight: FontWeight.w800),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
               _includeFoundation
@@ -473,7 +473,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           'Your commitment',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
         ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.1, end: 0),
         const SizedBox(height: 8),
@@ -597,7 +597,7 @@ class _CommitSummaryRow extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
@@ -630,7 +630,7 @@ class _DurationCard extends StatelessWidget {
               '$days Days',
               style: TextStyle(
                 fontSize: 24,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
                 color: selected ? AppColors.orange : AppColors.textPrimary,
               ),
             ),

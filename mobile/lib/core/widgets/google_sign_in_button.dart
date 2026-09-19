@@ -68,21 +68,11 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 80),
         width: double.infinity,
-        height: 56,
-        transform: Matrix4.translationValues(0, _pressed ? 3 : 0, 0),
+        height: 54,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderStrong, width: _pressed ? 2 : 2.5),
-          boxShadow: _pressed
-              ? null
-              : const [
-                  BoxShadow(
-                    color: AppColors.borderStrong,
-                    blurRadius: 0,
-                    offset: Offset(0, 3),
-                  ),
-                ],
+          color: _pressed ? AppColors.background : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.borderStrong, width: 1),
         ),
         alignment: Alignment.center,
         child: _loading
@@ -103,7 +93,7 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
                   const Text(
                     'Continue with Google',
                     style: TextStyle(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       fontSize: 16,
                       color: AppColors.textPrimary,
                     ),
@@ -128,7 +118,7 @@ class AuthDivider extends StatelessWidget {
           child: Text(
             'OR',
             style: TextStyle(
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               color: AppColors.muted,
               fontSize: 12,
             ),

@@ -34,7 +34,7 @@ class BadgesScreen extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           '$earned of ${badges.length} badges earned',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -91,7 +91,7 @@ class BadgesScreen extends ConsumerWidget {
                             b.name,
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                               color: b.earned
                                   ? AppColors.textPrimary
                                   : AppColors.textSecondary,

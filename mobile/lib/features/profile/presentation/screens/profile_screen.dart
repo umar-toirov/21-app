@@ -69,7 +69,7 @@ class ProfileScreen extends ConsumerWidget {
                                     : '?',
                                 style: const TextStyle(
                                   fontSize: 42,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                 ),
                               ),
@@ -85,19 +85,12 @@ class ProfileScreen extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                   color: AppColors.gold,
                                   borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: Colors.white, width: 3),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: AppColors.goldDepth,
-                                      offset: Offset(0, 3),
-                                      blurRadius: 0,
-                                    ),
-                                  ],
+                                  border: Border.all(color: Colors.white, width: 2),
                                 ),
                                 child: Text(
                                   'LV ${(profile.hp / 50).floor().clamp(1, 99)}',
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight: FontWeight.w700,
                                     fontSize: 11,
                                     color: AppColors.navy,
                                   ),
@@ -220,7 +213,7 @@ class ProfileScreen extends ConsumerWidget {
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
                                               fontSize: 10,
-                                              fontWeight: FontWeight.w800,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                         ),
@@ -266,7 +259,7 @@ class _GemStat extends StatelessWidget {
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.25), width: 2),
+          border: Border.all(color: color.withValues(alpha: 0.18), width: 1),
         ),
         child: Column(
           children: [
@@ -275,7 +268,7 @@ class _GemStat extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
                 fontSize: 18,
                 color: color,
               ),
@@ -323,15 +316,12 @@ class _MenuTile extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
-              border: Border(
-                bottom: BorderSide(color: color.withValues(alpha: 0.45), width: 3),
-              ),
             ),
             child: Icon(icon, color: color),
           ),
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
           subtitle: Text(
             subtitle,
             style: const TextStyle(

@@ -166,7 +166,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 onPressed: () => context.push(AppRoutes.login),
                 child: const Text(
                   'Already have an account? Login',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ],

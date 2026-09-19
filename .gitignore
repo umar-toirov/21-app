@@ -11,6 +11,7 @@ mobile/env.json
 mobile/env.android.json
 mobile/env.android.usb.json
 mobile/env.android.phone.json
+mobile/env.production.json
 
 # Local databases
 backend/*.db

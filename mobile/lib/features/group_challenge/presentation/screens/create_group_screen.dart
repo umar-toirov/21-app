@@ -163,7 +163,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
               onChanged: (v) => setState(() => _maxMissed = v ?? 3),
             ),
             const SizedBox(height: 20),
-            const Text('Task mode', style: TextStyle(fontWeight: FontWeight.w800)),
+            const Text('Task mode', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             SegmentedButton<String>(
               segments: const [
@@ -183,7 +183,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             const SizedBox(height: 20),
             const Text(
               'Foundation tasks (shared with the group)',
-              style: TextStyle(fontWeight: FontWeight.w800),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -212,7 +212,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
               const SizedBox(height: 24),
               Text(
                 'Your personal tasks (${_selectedPersonal.length}/2+)',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               Wrap(

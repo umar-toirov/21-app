@@ -32,7 +32,7 @@ class ChallengeDashboardScreen extends ConsumerWidget {
                 const Text(
                   'Could not load your programs.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -136,7 +136,7 @@ class _HomeContent extends StatelessWidget {
                           ? profile.fullName[0].toUpperCase()
                           : '?',
                       style: const TextStyle(
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.orange,
                       ),
                     ),
@@ -146,41 +146,33 @@ class _HomeContent extends StatelessWidget {
             ).animate().fadeIn().slideY(begin: -0.12, end: 0),
             const SizedBox(height: 18),
             HomeGreetingHero(name: profile.fullName),
-            const SizedBox(height: 22),
-            Text(
-              'Your programs',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                StatTile3D(
+                  icon: Icons.bolt_rounded,
+                  label: 'Points',
+                  value: '${profile.hp}',
+                  color: AppColors.orange,
+                  delay: 0.ms,
+                ),
+                StatTile3D(
+                  icon: Icons.local_fire_department_rounded,
+                  label: 'Streak',
+                  value: '${profile.currentStreak}',
+                  color: AppColors.orangeDepth,
+                  delay: 60.ms,
+                ),
+                StatTile3D(
+                  icon: Icons.emoji_events_rounded,
+                  label: 'Programs',
+                  value:
+                      '${(personal != null ? 1 : 0) + (group != null ? 1 : 0)}',
+                  color: AppColors.teal,
+                  delay: 120.ms,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            _PersonalProgramCard(
-              challenge: personal,
-              onStart: () => context.go(AppRoutes.onboarding),
-              onOpen: personal == null
-                  ? null
-                  : () => context.push('/home/challenge/${personal.id}'),
-              onTasks: personal == null
-                  ? null
-                  : () => context.push('/home/challenge/${personal.id}'),
-            ).animate().fadeIn(delay: 40.ms).slideY(begin: 0.08, end: 0),
-            const SizedBox(height: 12),
-            _GroupProgramCard(
-              challenge: group,
-              onBrowse: () => context.go('${AppRoutes.home}/groups'),
-              onOpen: group == null
-                  ? null
-                  : () {
-                      if (group.groupId != null) {
-                        context.push('/groups/${group.groupId}/dashboard');
-                      } else {
-                        context.push('/home/challenge/${group.id}');
-                      }
-                    },
-              onTasks: group == null
-                  ? null
-                  : () => context.push('/home/challenge/${group.id}'),
-            ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.08, end: 0),
             if (hasAny) ...[
               if (showBothTaskStrips) ...[
                 const SizedBox(height: 22),
@@ -216,52 +208,43 @@ class _HomeContent extends StatelessWidget {
                   StreakCard(streak: profile.currentStreak),
                 ],
               ).animate().fadeIn(delay: 100.ms),
-            ] else ...[
-              const SizedBox(height: 28),
-              SoftCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Start a program to begin Day 1.',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 12),
-                    PrimaryButton(
-                      label: 'Start Personal Challenge',
-                      onPressed: () => context.go(AppRoutes.onboarding),
-                    ),
-                  ],
-                ),
-              ),
             ],
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                StatTile3D(
-                  icon: Icons.bolt_rounded,
-                  label: 'Points',
-                  value: '${profile.hp}',
-                  color: AppColors.orange,
-                  delay: 0.ms,
-                ),
-                StatTile3D(
-                  icon: Icons.local_fire_department_rounded,
-                  label: 'Streak',
-                  value: '${profile.currentStreak}',
-                  color: AppColors.orangeDepth,
-                  delay: 60.ms,
-                ),
-                StatTile3D(
-                  icon: Icons.emoji_events_rounded,
-                  label: 'Programs',
-                  value:
-                      '${(personal != null ? 1 : 0) + (group != null ? 1 : 0)}',
-                  color: AppColors.teal,
-                  delay: 120.ms,
-                ),
-              ],
+            const SizedBox(height: 24),
+            Text(
+              'Programs',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
             ),
+            const SizedBox(height: 12),
+            _PersonalProgramCard(
+              challenge: personal,
+              onStart: () => context.go(AppRoutes.onboarding),
+              onOpen: personal == null
+                  ? null
+                  : () => context.push('/home/challenge/${personal.id}'),
+              onTasks: personal == null
+                  ? null
+                  : () => context.push('/home/challenge/${personal.id}'),
+            ).animate().fadeIn(delay: 40.ms).slideY(begin: 0.08, end: 0),
+            const SizedBox(height: 12),
+            _GroupProgramCard(
+              challenge: group,
+              onBrowse: () => context.go('${AppRoutes.home}/groups'),
+              onOpen: group == null
+                  ? null
+                  : () {
+                      if (group.groupId != null) {
+                        context.push('/groups/${group.groupId}/dashboard');
+                      } else {
+                        context.push('/home/challenge/${group.id}');
+                      }
+                    },
+              onTasks: group == null
+                  ? null
+                  : () => context.push('/home/challenge/${group.id}'),
+            ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.08, end: 0),
             if (focus?.quote != null) ...[
               const SizedBox(height: 18),
               SoftCard(
@@ -307,7 +290,7 @@ class _TodayTaskStrip extends StatelessWidget {
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                     ),
               ),
             ),
@@ -365,7 +348,11 @@ class _PersonalProgramCard extends StatelessWidget {
             const Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _TargetIllustration(),
+                _SquareProgramIcon(
+                  color: _accent,
+                  softColor: _accentSoft,
+                  icon: Icons.flag_rounded,
+                ),
                 SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -374,7 +361,7 @@ class _PersonalProgramCard extends StatelessWidget {
                       Text(
                         'No personal program',
                         style: TextStyle(
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                           fontSize: 16,
                           color: AppColors.textPrimary,
                           height: 1.2,
@@ -505,7 +492,7 @@ class _GroupProgramCard extends ConsumerWidget {
                       Text(
                         'No group program',
                         style: TextStyle(
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                           fontSize: 16,
                           color: AppColors.textPrimary,
                           height: 1.2,
@@ -571,13 +558,13 @@ class _ProgramShell extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: AppColors.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -615,7 +602,7 @@ class _ProgramBadge extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               fontSize: 12,
               color: color,
             ),
@@ -684,95 +671,9 @@ class _SquareProgramIcon extends StatelessWidget {
       height: 64,
       decoration: BoxDecoration(
         color: softColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Icon(icon, size: 30, color: color),
-    );
-  }
-}
-
-class _TargetIllustration extends StatelessWidget {
-  const _TargetIllustration();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 72,
-      height: 78,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            bottom: 6,
-            child: Container(
-              width: 46,
-              height: 14,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD8C8),
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 14,
-            child: Container(
-              width: 34,
-              height: 10,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFB894),
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 4,
-            child: Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.orange.withValues(alpha: 0.18),
-                border: Border.all(
-                    color: AppColors.orange.withValues(alpha: 0.35), width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.orange.withValues(alpha: 0.18),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                    border: Border.all(color: AppColors.orange, width: 3),
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.orange,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const Positioned(
-            top: 0,
-            right: 8,
-            child: Icon(Icons.north_east_rounded,
-                size: 16, color: AppColors.orangeDepth),
-          ),
-        ],
-      ),
+      child: Icon(icon, size: 28, color: color),
     );
   }
 }
@@ -824,7 +725,7 @@ class _ActiveProgramBody extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     fontSize: 16,
                     color: AppColors.textPrimary,
                     height: 1.2,
@@ -835,7 +736,7 @@ class _ActiveProgramBody extends StatelessWidget {
                   'Day $currentDay / $durationDays'
                   '${dayComplete ? ' · done' : ''}',
                   style: TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     fontSize: 13,
                     color: accent,
                   ),
@@ -858,7 +759,7 @@ class _ActiveProgramBody extends StatelessWidget {
                     Text(
                       '$pct%',
                       style: const TextStyle(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         fontSize: 12,
                         color: AppColors.textSecondary,
                       ),
@@ -929,7 +830,7 @@ class _MemberStackRow extends StatelessWidget {
                         String.fromCharCode(65 + i),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           fontSize: 11,
                         ),
                       ),
@@ -952,7 +853,7 @@ class _MemberStackRow extends StatelessWidget {
                         '+$overflow',
                         style: TextStyle(
                           color: accent,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           fontSize: 9,
                         ),
                       ),
@@ -1019,7 +920,7 @@ class _FilledProgramButton extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
             ),
           ],
         ),
@@ -1062,7 +963,7 @@ class _DualProgramActions extends StatelessWidget {
                 children: [
                   Icon(Icons.open_in_new_rounded, size: 16),
                   SizedBox(width: 6),
-                  Text('Open', style: TextStyle(fontWeight: FontWeight.w800)),
+                  Text('Open', style: TextStyle(fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -1093,7 +994,7 @@ class _DualProgramActions extends StatelessWidget {
                       "Today's tasks",
                       overflow: TextOverflow.ellipsis,
                       style:
-                          TextStyle(fontWeight: FontWeight.w800, color: accent),
+                          TextStyle(fontWeight: FontWeight.w600, color: accent),
                     ),
                   ),
                 ],

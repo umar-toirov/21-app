@@ -67,7 +67,7 @@ class ChallengeCompleteScreen extends ConsumerWidget {
                         children: [
                           Text(
                             latest.title,
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 6),

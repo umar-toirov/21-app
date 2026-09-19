@@ -143,7 +143,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: AppColors.teal,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 20,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -191,7 +191,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                                 ? "Today's tasks"
                                 : 'Day $selected ${dayMeta?.isComplete == true ? '· done' : ''}',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w700,
                                 ),
                           ),
                           const Spacer(),
@@ -200,7 +200,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                               'Missed',
                               style: TextStyle(
                                 color: AppColors.danger,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                               ),
                             )
                           else if (isToday && challenge.dayComplete)
@@ -208,7 +208,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                               'Done for today',
                               style: TextStyle(
                                 color: AppColors.success,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                         ],

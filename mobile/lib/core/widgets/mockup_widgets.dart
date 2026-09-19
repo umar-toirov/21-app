@@ -5,22 +5,21 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/models.dart';
 import '../theme/app_theme.dart';
-import 'shared_widgets.dart';
 
-/// Glossy 3D-style icon bubble used across the mockup.
+/// Flat tinted icon tile (soft background, coloured glyph).
 class GlossyIcon extends StatelessWidget {
   const GlossyIcon({
     super.key,
     required this.icon,
     this.size = 56,
     this.color = AppColors.orange,
-    this.iconColor = Colors.white,
+    this.iconColor,
   });
 
   final IconData icon;
   final double size;
   final Color color;
-  final Color iconColor;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -28,25 +27,10 @@ class GlossyIcon extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(color, Colors.white, 0.35)!,
-            color,
-            Color.lerp(color, Colors.black, 0.18)!,
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.4),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(size * 0.32),
       ),
-      child: Icon(icon, color: iconColor, size: size * 0.48),
+      child: Icon(icon, color: iconColor ?? color, size: size * 0.5),
     );
   }
 }
@@ -199,7 +183,7 @@ class IlmChallengeCard extends StatelessWidget {
                           title,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w700,
                             fontSize: 17,
                           ),
                         ),
@@ -222,7 +206,7 @@ class IlmChallengeCard extends StatelessWidget {
                         dayLabel,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
                       ),
@@ -274,7 +258,7 @@ class IlmChallengeCard extends StatelessWidget {
   }
 }
 
-/// Home greeting hero with brand mark (no mountain asset).
+/// Home header: date, greeting and a small avatar.
 class HomeGreetingHero extends StatelessWidget {
   const HomeGreetingHero({
     super.key,
@@ -282,6 +266,14 @@ class HomeGreetingHero extends StatelessWidget {
   });
 
   final String name;
+
+  static const _months = [
+    'January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December',
+  ];
+  static const _days = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+  ];
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -292,134 +284,39 @@ class HomeGreetingHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
     final first = name.trim().isEmpty ? 'there' : name.trim().split(' ').first;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '$_greeting, $first',
+                '${_days[now.weekday - 1]}, ${_months[now.month - 1]} ${now.day}',
                 style: const TextStyle(
                   color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text.rich(
-                TextSpan(
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 26,
-                    height: 1.2,
-                    color: AppColors.textPrimary,
-                  ),
-                  children: [
-                    TextSpan(text: 'Discipline today,\n'),
-                    TextSpan(text: 'success', style: TextStyle(color: AppColors.navy)),
-                    TextSpan(text: ' tomorrow.'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Stay focused, keep going and become your best version.',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   fontSize: 13,
-                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$_greeting, $first',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 26,
+                  height: 1.15,
+                  letterSpacing: -0.6,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 10),
-        const _HomeBrandBadge(),
       ],
-    ).animate().fadeIn(duration: 450.ms).slideY(begin: 0.06, end: 0);
-  }
-}
-
-class _HomeBrandBadge extends StatelessWidget {
-  const _HomeBrandBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 118,
-      height: 118,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFF4EC),
-            Color(0xFFFFE0D0),
-            Color(0xFFFFF8F2),
-          ],
-          stops: [0, 0.55, 1],
-        ),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppColors.orange.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.orange.withValues(alpha: 0.16),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            top: 10,
-            right: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.navy,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Text(
-                '21',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 11,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ),
-          ),
-          const BrandLogo(size: 64, variant: BrandLogoVariant.gold)
-              .animate()
-              .fadeIn(duration: 500.ms)
-              .scale(
-                begin: const Offset(0.9, 0.9),
-                end: const Offset(1, 1),
-                duration: 650.ms,
-                curve: Curves.easeOutCubic,
-              ),
-          Positioned(
-            bottom: 12,
-            child: Text(
-              'ILM HUB',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 10,
-                letterSpacing: 1.2,
-                color: AppColors.orangeDepth.withValues(alpha: 0.85),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.04, end: 0);
   }
 }
 
@@ -495,7 +392,7 @@ class ChallengeDayStrip extends StatelessWidget {
                       label,
                       style: TextStyle(
                         color: fg,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
                     ),
@@ -504,7 +401,7 @@ class ChallengeDayStrip extends StatelessWidget {
                       num,
                       style: TextStyle(
                         color: fg,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         fontSize: 18,
                       ),
                     ),
@@ -537,6 +434,7 @@ class ChallengeDayStrip extends StatelessWidget {
 /// Pulsing streak flame card.
 class StreakCard extends StatelessWidget {
   const StreakCard({super.key, required this.streak});
+
   final int streak;
 
   @override
@@ -544,46 +442,33 @@ class StreakCard extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.border, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+        decoration: _cardDecoration(),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const GlossyIcon(
               icon: Icons.local_fire_department_rounded,
               color: AppColors.orange,
-              size: 48,
-            )
-                .animate(onPlay: (c) => c.repeat(reverse: true))
-                .scale(
-                  begin: const Offset(1, 1),
-                  end: const Offset(1.1, 1.1),
-                  duration: 900.ms,
-                ),
-            const SizedBox(height: 10),
+              size: 40,
+            ),
+            const SizedBox(height: 14),
             Text(
               '$streak',
               style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 26,
-                color: AppColors.orange,
+                fontWeight: FontWeight.w700,
+                fontSize: 28,
+                height: 1,
+                letterSpacing: -0.8,
+                color: AppColors.textPrimary,
               ),
             ),
+            const SizedBox(height: 4),
             const Text(
-              'Day Streak',
+              'Day streak',
               style: TextStyle(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
-                fontSize: 12,
+                fontSize: 13,
               ),
             ),
           ],
@@ -592,6 +477,19 @@ class StreakCard extends StatelessWidget {
     );
   }
 }
+
+BoxDecoration _cardDecoration() => BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: AppColors.border, width: 1),
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.textPrimary.withValues(alpha: 0.04),
+          blurRadius: 14,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    );
 
 class TasksRingCard extends StatelessWidget {
   const TasksRingCard({
@@ -609,37 +507,27 @@ class TasksRingCard extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.border, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+        decoration: _cardDecoration(),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AnimatedRing(
               progress: p,
-              size: 72,
-              stroke: 8,
+              size: 64,
+              stroke: 6,
               color: AppColors.teal,
               child: Text(
                 '$done/$total',
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             const Text(
               'Tasks done',
               style: TextStyle(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
-                fontSize: 12,
+                fontSize: 13,
               ),
             ),
           ],
@@ -740,7 +628,7 @@ class _LineChartPainter extends CustomPainter {
       oldDelegate.progress != progress || oldDelegate.values != values;
 }
 
-/// Stat tile with bounce-in.
+/// Compact stat tile: tinted icon, big number, quiet label.
 class StatTile3D extends StatelessWidget {
   const StatTile3D({
     super.key,
@@ -762,45 +650,35 @@ class StatTile3D extends StatelessWidget {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GlossyIcon(icon: icon, color: color, size: 36),
-            const SizedBox(height: 8),
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 12),
             Text(
               value,
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-                color: color,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 22,
+                height: 1,
+                letterSpacing: -0.5,
+                color: AppColors.textPrimary,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
               label,
               style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
               ),
             ),
           ],
         ),
-      )
-          .animate(delay: delay)
-          .fadeIn(duration: 350.ms)
-          .scale(begin: const Offset(0.85, 0.85), curve: Curves.easeOutBack),
+      ).animate(delay: delay).fadeIn(duration: 350.ms),
     );
   }
 }

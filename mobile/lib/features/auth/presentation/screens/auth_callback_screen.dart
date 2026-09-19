@@ -115,7 +115,7 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
                     SizedBox(height: 20),
                     Text(
                       'Signing you in…',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                   ],
                 )

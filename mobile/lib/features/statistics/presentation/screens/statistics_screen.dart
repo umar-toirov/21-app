@@ -72,7 +72,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                   ),
                   labelColor: Colors.white,
                   unselectedLabelColor: AppColors.textSecondary,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w800),
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w600),
                   tabs: const [
                     Tab(text: 'Personal'),
                     Tab(text: 'Leaderboard'),
@@ -184,7 +184,7 @@ class _PersonalStatsTab extends ConsumerWidget {
                   Text(
                     '${rate.toStringAsFixed(0)}%',
                     style: const TextStyle(
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       fontSize: 22,
                       color: AppColors.teal,
                     ),
@@ -221,7 +221,7 @@ class _PersonalStatsTab extends ConsumerWidget {
                             Text(
                               e.key == 'base' ? '${e.value}' : '+${e.value}',
                               style: const TextStyle(
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w700,
                                 color: AppColors.orange,
                               ),
                             ),
@@ -275,7 +275,7 @@ class _PersonalStatsTab extends ConsumerWidget {
                                 : 'D${i + 1}',
                             style: const TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.muted,
                             ),
                           ),
@@ -318,7 +318,7 @@ class _OverviewCard extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
                 fontSize: 18,
                 color: color,
               ),
@@ -411,17 +411,17 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                                 AppColors.orange.withValues(alpha: 0.12),
                             child: Text(
                               '#$i',
-                              style: const TextStyle(fontWeight: FontWeight.w900),
+                              style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),
                           title: Text(
                             entry.fullName,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           trailing: Text(
                             '${entry.value}',
                             style: const TextStyle(
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w700,
                               fontSize: 18,
                               color: AppColors.orange,
                             ),
@@ -473,7 +473,7 @@ class _Podium extends StatelessWidget {
             entry.fullName.isNotEmpty
                 ? entry.fullName[0].toUpperCase()
                 : '?',
-            style: const TextStyle(fontWeight: FontWeight.w900),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
         const SizedBox(height: 6),
@@ -484,7 +484,7 @@ class _Podium extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           ),
         ),
         const SizedBox(height: 6),
@@ -503,7 +503,7 @@ class _Podium extends StatelessWidget {
           child: Text(
             '#$place',
             style: const TextStyle(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: Colors.white,
               fontSize: 18,
             ),
@@ -533,7 +533,7 @@ class _MetricChip extends StatelessWidget {
         showCheckmark: false,
         selectedColor: AppColors.orange,
         labelStyle: TextStyle(
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           color: isSelected ? Colors.white : AppColors.textPrimary,
         ),
       ),

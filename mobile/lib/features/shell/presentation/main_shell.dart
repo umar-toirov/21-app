@@ -24,11 +24,15 @@ class MainShell extends StatelessWidget {
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomAppBar(
-        elevation: 12,
-        color: AppColors.surface,
-        child: SizedBox(
-          height: 64,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+          height: 62,
           child: Row(
             children: [
               _NavItem(
@@ -56,6 +60,7 @@ class MainShell extends StatelessWidget {
                 onTap: () => context.go('${AppRoutes.home}/profile'),
               ),
             ],
+          ),
           ),
         ),
       ),
@@ -90,16 +95,16 @@ class _NavItem extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 26,
-              color: selected ? AppColors.orange : AppColors.muted,
+              size: 24,
+              color: selected ? AppColors.textPrimary : AppColors.muted,
             ),
             const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: selected ? AppColors.orange : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected ? AppColors.textPrimary : AppColors.textSecondary,
               ),
             ),
           ],

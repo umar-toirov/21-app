@@ -100,7 +100,7 @@ class GroupListScreen extends ConsumerWidget {
                                       children: [
                                         Text(
                                           g.name,
-                                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(

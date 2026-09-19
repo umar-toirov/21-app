@@ -181,7 +181,7 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
                   children: [
                     Text(
                       _preview!['name'] as String? ?? 'Group',
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -194,7 +194,7 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
                     ),
                     if (foundation.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      const Text('Foundation tasks', style: TextStyle(fontWeight: FontWeight.w800)),
+                      const Text('Foundation tasks', style: TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 6),
                       ...foundation.map(
                         (t) => Padding(
@@ -210,7 +210,7 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
                 const SizedBox(height: 20),
                 Text(
                   'Your personal tasks (${_selectedPersonal.length}/2+)',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Wrap(

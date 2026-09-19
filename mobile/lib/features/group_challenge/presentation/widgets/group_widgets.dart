@@ -84,7 +84,7 @@ class GroupHeroCard extends StatelessWidget {
                         '$memberCount members',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
                       ),
@@ -96,7 +96,7 @@ class GroupHeroCard extends StatelessWidget {
                   name,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     fontSize: 26,
                     letterSpacing: -0.5,
                   ),
@@ -126,7 +126,7 @@ class GroupHeroCard extends StatelessWidget {
                       '${todayCompletionPercent.toStringAsFixed(0)}%',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         fontSize: 18,
                       ),
                     ),
@@ -188,7 +188,7 @@ class GroupStatGrid extends StatelessWidget {
           style: Theme.of(context)
               .textTheme
               .titleMedium
-              ?.copyWith(fontWeight: FontWeight.w900),
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -207,7 +207,7 @@ class GroupStatGrid extends StatelessWidget {
                     Text(
                       item.value,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w900, fontSize: 22),
+                          fontWeight: FontWeight.w700, fontSize: 22),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -266,7 +266,7 @@ class GroupProgressCard extends StatelessWidget {
                   children: [
                     const Text('Group Progress',
                         style: TextStyle(
-                            fontWeight: FontWeight.w900, fontSize: 16)),
+                            fontWeight: FontWeight.w700, fontSize: 16)),
                     Text(
                       '${percent.toStringAsFixed(0)}% completed today',
                       style: const TextStyle(
@@ -338,7 +338,7 @@ class _RewardChip extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                  color: color, fontWeight: FontWeight.w800, fontSize: 12),
+                  color: color, fontWeight: FontWeight.w600, fontSize: 12),
             ),
           ),
         ],
@@ -363,7 +363,7 @@ class PinnedAnnouncements extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Pinned',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 10),
         ...pinned.map((a) {
           final map = a as Map<String, dynamic>;
@@ -388,7 +388,7 @@ class PinnedAnnouncements extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         map['title'] as String? ?? 'Announcement',
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -471,7 +471,7 @@ class GroupActivityFeed extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Team Activity',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 10),
         ...feed.take(15).map((item) {
           final map = item as Map<String, dynamic>;
@@ -500,7 +500,7 @@ class GroupActivityFeed extends StatelessWidget {
                         Text(
                           map['message'] as String? ?? '',
                           style: const TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: 13),
+                              fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                         if (timeLabel.isNotEmpty)
                           Text(
@@ -553,7 +553,7 @@ class GroupPodium extends StatelessWidget {
                           .substring(0, 1)
                           .toUpperCase(),
                       style: TextStyle(
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         fontSize: place == 1 ? 22 : 18,
                         color: medal,
                       ),
@@ -570,7 +570,7 @@ class GroupPodium extends StatelessWidget {
                         '#$place',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                           fontSize: 10,
                         ),
                       ),
@@ -584,7 +584,7 @@ class GroupPodium extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style:
-                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
               ),
               Text(
                 '${m['group_points'] ?? m['hp'] ?? 0} pts',
@@ -669,7 +669,7 @@ class GroupLeaderboardTile extends StatelessWidget {
                 child: Text(
                   '#$rank',
                   style: TextStyle(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: rank <= 3
                         ? AppColors.goldDepth
                         : AppColors.textSecondary,
@@ -684,7 +684,7 @@ class GroupLeaderboardTile extends StatelessWidget {
                       .substring(0, 1)
                       .toUpperCase(),
                   style: const TextStyle(
-                      fontWeight: FontWeight.w900, color: AppColors.teal),
+                      fontWeight: FontWeight.w700, color: AppColors.teal),
                 ),
               ),
               const SizedBox(width: 12),
@@ -694,7 +694,7 @@ class GroupLeaderboardTile extends StatelessWidget {
                   children: [
                     Text(
                       '${member['full_name']}${isYou ? ' (you)' : ''}',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     Text(
                       '${member['group_points'] ?? 0} pts · '
@@ -763,7 +763,7 @@ class AttendanceHeatmap extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Daily Attendance',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 12),
         Wrap(
           spacing: 4,
@@ -842,7 +842,7 @@ class LiveSessionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Upcoming Session',
-                        style: TextStyle(fontWeight: FontWeight.w900)),
+                        style: TextStyle(fontWeight: FontWeight.w700)),
                     Text(
                       s['title'] as String? ?? 'Live session',
                       style: const TextStyle(fontWeight: FontWeight.w700),
@@ -914,7 +914,7 @@ class GroupErrorState extends StatelessWidget {
                 color: AppColors.muted),
             const SizedBox(height: 16),
             const Text('Could not load group',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
             const SizedBox(height: 8),
             Text(message,
                 textAlign: TextAlign.center,
@@ -964,7 +964,7 @@ class GroupMemberActionsRoster extends StatelessWidget {
       children: [
         const Text(
           'Member actions',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
         ),
         const SizedBox(height: 4),
         Text(
@@ -1035,7 +1035,7 @@ class GroupMemberActionsRoster extends StatelessWidget {
                                   ? (m['full_name'] as String)[0].toUpperCase()
                                   : '?',
                               style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w700,
                                   color: AppColors.orange),
                             ),
                           ),
@@ -1047,7 +1047,7 @@ class GroupMemberActionsRoster extends StatelessWidget {
                                 Text(
                                   m['full_name'] as String? ?? 'Member',
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.w800),
+                                      fontWeight: FontWeight.w600),
                                 ),
                                 Text(
                                   tasks.isEmpty
@@ -1110,7 +1110,7 @@ class GroupMemberActionsRoster extends StatelessWidget {
                                     'F',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.w700,
                                       color: AppColors.gold,
                                     ),
                                   ),

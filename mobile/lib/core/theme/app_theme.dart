@@ -24,13 +24,13 @@ class AppColors {
   static const streak = orange;
 
   // Surfaces — clean white like the mockup
-  static const background = Color(0xFFF7F8FA);
+  static const background = Color(0xFFF5F5F7);
   static const surface = Color(0xFFFFFFFF);
-  static const border = Color(0xFFEEF1F5);
-  static const borderStrong = Color(0xFFE2E8F0);
-  static const textPrimary = Color(0xFF1A1D26);
-  static const textSecondary = Color(0xFF8B93A7);
-  static const muted = Color(0xFFB8C0D0);
+  static const border = Color(0xFFEBEBEF);
+  static const borderStrong = Color(0xFFDCDDE3);
+  static const textPrimary = Color(0xFF15161A);
+  static const textSecondary = Color(0xFF70737F);
+  static const muted = Color(0xFFA9ACB8);
 
   // Dark
   static const backgroundDark = Color(0xFF0B1220);
@@ -46,7 +46,7 @@ class AppColors {
 
 class AppTheme {
   static TextTheme _textTheme(Brightness brightness) {
-    final base = GoogleFonts.nunitoTextTheme(
+    final base = GoogleFonts.interTextTheme(
       brightness == Brightness.light
           ? ThemeData.light().textTheme
           : ThemeData.dark().textTheme,
@@ -56,22 +56,22 @@ class AppTheme {
         : AppColors.textPrimaryDark;
     return base.apply(bodyColor: color, displayColor: color).copyWith(
           displayLarge: base.displayLarge?.copyWith(
-            fontWeight: FontWeight.w900,
-            letterSpacing: -1,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -1.2,
             color: color,
           ),
           displayMedium: base.displayMedium?.copyWith(
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.5,
             color: color,
           ),
-          headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w800),
-          headlineMedium: base.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-          headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-          titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w600),
+          headlineMedium: base.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
+          headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+          titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.3),
           titleMedium: base.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           labelLarge: base.labelLarge?.copyWith(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             letterSpacing: 0.3,
           ),
         );
@@ -100,9 +100,9 @@ class AppTheme {
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.nunito(
+        titleTextStyle: GoogleFonts.inter(
           fontSize: 20,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
         ),
       ),
@@ -111,17 +111,17 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppColors.border, width: 2),
+          side: const BorderSide(color: AppColors.border, width: 1),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.blue,
+          backgroundColor: AppColors.orange,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          textStyle: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 16),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -131,26 +131,27 @@ class AppTheme {
         labelStyle: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.borderStrong, width: 2),
+          borderSide: const BorderSide(color: AppColors.borderStrong, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.borderStrong, width: 2),
+          borderSide: const BorderSide(color: AppColors.borderStrong, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.teal, width: 2.5),
+          borderSide: const BorderSide(color: AppColors.teal, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.orange.withValues(alpha: 0.15),
+        indicatorColor: Colors.transparent,
+        elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
-          return GoogleFonts.nunito(
+          return GoogleFonts.inter(
             fontSize: 12,
-            fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w700,
             color: selected ? AppColors.orange : AppColors.textSecondary,
           );
         }),
@@ -165,9 +166,9 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surface,
         selectedColor: AppColors.teal.withValues(alpha: 0.18),
-        side: const BorderSide(color: AppColors.borderStrong, width: 2),
+        side: const BorderSide(color: AppColors.borderStrong, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        labelStyle: GoogleFonts.nunito(fontWeight: FontWeight.w700),
+        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
       ),
       dividerColor: AppColors.border,
     );
@@ -196,9 +197,9 @@ class AppTheme {
         foregroundColor: AppColors.textPrimaryDark,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.nunito(
+        titleTextStyle: GoogleFonts.inter(
           fontSize: 20,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           color: AppColors.textPrimaryDark,
         ),
       ),
@@ -207,7 +208,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 2),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(

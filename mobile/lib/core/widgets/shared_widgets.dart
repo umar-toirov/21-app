@@ -80,7 +80,7 @@ class BrandLogo extends StatelessWidget {
   }
 }
 
-/// Duolingo-style 3D button with pressable depth edge.
+/// Flat primary button with soft glow and a subtle press scale.
 class PrimaryButton extends StatefulWidget {
   const PrimaryButton({
     super.key,
@@ -122,7 +122,6 @@ class _PrimaryButtonState extends State<PrimaryButton> {
     }
 
     final color = widget.color ?? AppColors.orange;
-    final depth = widget.depthColor ?? AppColors.orangeDepth;
     final fg = widget.textColor ?? Colors.white;
     final enabled = widget.onPressed != null && !widget.isLoading;
 
@@ -136,30 +135,23 @@ class _PrimaryButtonState extends State<PrimaryButton> {
             }
           : null,
       onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 80),
+      child: AnimatedScale(
+        scale: _pressed ? 0.98 : 1,
+        duration: const Duration(milliseconds: 90),
+        child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
         width: double.infinity,
-        height: 56,
-        transform: Matrix4.translationValues(0, _pressed ? 4 : 0, 0),
+        height: 54,
         decoration: BoxDecoration(
-          color: enabled ? color : AppColors.muted,
-          borderRadius: BorderRadius.circular(16),
-          border: Border(
-            bottom: BorderSide(
-              color: enabled ? depth : AppColors.borderStrong,
-              width: _pressed ? 0 : 5,
-            ),
-            left: BorderSide(color: enabled ? depth : AppColors.borderStrong, width: 0.5),
-            right: BorderSide(color: enabled ? depth : AppColors.borderStrong, width: 0.5),
-            top: BorderSide(color: enabled ? depth : AppColors.borderStrong, width: 0.5),
-          ),
-          boxShadow: _pressed || !enabled
+          color: enabled ? color : AppColors.borderStrong,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: !enabled
               ? null
               : [
                   BoxShadow(
-                    color: depth.withValues(alpha: 0.35),
-                    blurRadius: 0,
-                    offset: const Offset(0, 4),
+                    color: color.withValues(alpha: 0.28),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
                 ],
         ),
@@ -182,13 +174,14 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                     widget.label,
                     style: TextStyle(
                       color: fg,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17,
-                      letterSpacing: 0.2,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      letterSpacing: 0,
                     ),
                   ),
                 ],
               ),
+      ),
       ),
     );
   }
@@ -227,53 +220,44 @@ class _OutlinedDuoButtonState extends State<_OutlinedDuoButton> {
             }
           : null,
       onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 80),
+      child: AnimatedScale(
+        scale: _pressed ? 0.98 : 1,
+        duration: const Duration(milliseconds: 90),
+        child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
         width: double.infinity,
-        height: 56,
-        transform: Matrix4.translationValues(0, _pressed ? 3 : 0, 0),
+        height: 54,
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.borderStrong,
-            width: _pressed ? 2 : 2.5,
-          ),
-          boxShadow: _pressed
-              ? null
-              : const [
-                  BoxShadow(
-                    color: AppColors.borderStrong,
-                    blurRadius: 0,
-                    offset: Offset(0, 3),
-                  ),
-                ],
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.borderStrong, width: 1),
         ),
         alignment: Alignment.center,
         child: widget.isLoading
             ? const SizedBox(
                 height: 22,
                 width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.blue),
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.textPrimary),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (widget.icon != null) ...[
-                    Icon(widget.icon, color: AppColors.blue, size: 22),
+                    Icon(widget.icon, color: AppColors.textPrimary, size: 22),
                     const SizedBox(width: 8),
                   ],
                   Text(
                     widget.label,
                     style: const TextStyle(
-                      color: AppColors.blue,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
                     ),
                   ),
                 ],
               ),
+      ),
       ),
     );
   }
@@ -301,11 +285,8 @@ class StatChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border, width: 2),
-          boxShadow: const [
-            BoxShadow(color: AppColors.border, offset: Offset(0, 3), blurRadius: 0),
-          ],
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border, width: 1),
         ),
         child: Column(
           children: [
@@ -314,7 +295,7 @@ class StatChip extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
                 fontSize: 18,
                 color: c,
               ),
@@ -352,9 +333,8 @@ class StatPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.25), width: 2),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -364,7 +344,7 @@ class StatPill extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               fontSize: 15,
               color: color,
             ),
@@ -404,25 +384,18 @@ class _TaskTileState extends State<TaskTile> {
       child: AnimatedContainer(
         duration: 250.ms,
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: done ? AppColors.teal.withValues(alpha: 0.08) : AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: done
-                ? AppColors.teal
-                : widget.isFoundation
-                    ? AppColors.gold.withValues(alpha: 0.7)
-                    : AppColors.borderStrong,
-            width: 2.5,
-          ),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border, width: 1),
           boxShadow: done
               ? null
-              : const [
+              : [
                   BoxShadow(
-                    color: AppColors.border,
-                    offset: Offset(0, 3),
-                    blurRadius: 0,
+                    color: AppColors.textPrimary.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
         ),
@@ -430,18 +403,18 @@ class _TaskTileState extends State<TaskTile> {
           children: [
             AnimatedContainer(
               duration: 200.ms,
-              width: 32,
-              height: 32,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 color: done ? AppColors.teal : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: done ? AppColors.teal : AppColors.borderStrong,
-                  width: 3,
+                  width: 1.5,
                 ),
               ),
               child: done
-                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
                   : null,
             ),
             const SizedBox(width: 14),
@@ -452,19 +425,19 @@ class _TaskTileState extends State<TaskTile> {
                   Text(
                     widget.title,
                     style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
                       decoration: done ? TextDecoration.lineThrough : null,
                       color: done ? AppColors.textSecondary : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    widget.isFoundation ? 'FOUNDATION' : 'PERSONAL',
+                    widget.isFoundation ? 'Foundation' : 'Personal',
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0,
                       color: widget.isFoundation ? AppColors.goldDepth : AppColors.teal,
                     ),
                   ),
@@ -532,7 +505,7 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// Duolingo-style day path with circular nodes.
+/// Day path with circular nodes.
 class ProgressPath extends StatelessWidget {
   const ProgressPath({
     super.key,
@@ -635,7 +608,7 @@ class _DayNode extends StatelessWidget {
                 : Text(
                     '$day',
                     style: TextStyle(
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       fontSize: isCurrent ? 18 : 15,
                       color: fg,
                     ),
@@ -647,7 +620,7 @@ class _DayNode extends StatelessWidget {
           isCurrent ? 'TODAY' : 'DAY',
           style: TextStyle(
             fontSize: 10,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             color: isCurrent ? AppColors.orange : AppColors.muted,
             letterSpacing: 0.4,
           ),
@@ -691,7 +664,7 @@ class SoftCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color ?? AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor ?? AppColors.border, width: 1.5),
+        border: Border.all(color: borderColor ?? AppColors.border, width: 1),
         boxShadow: [
           BoxShadow(
             color: AppColors.textPrimary.withValues(alpha: 0.04),
@@ -745,7 +718,7 @@ class DayProgressRing extends StatelessWidget {
                 'Day $currentDay',
                 style: const TextStyle(
                   fontSize: 28,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
@@ -753,7 +726,7 @@ class DayProgressRing extends StatelessWidget {
                 '/ $totalDays',
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -945,7 +918,7 @@ class CelebrationOverlay extends StatelessWidget {
                     subtitle,
                     style: const TextStyle(
                       color: AppColors.orange,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       fontSize: 24,
                     ),
                     textAlign: TextAlign.center,
@@ -974,7 +947,7 @@ class SectionTitle extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
           ),
     );
   }
