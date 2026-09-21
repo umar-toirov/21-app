@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class ORMModel(BaseModel):
@@ -76,6 +76,17 @@ class TaskResponse(ORMModel):
 
 
 # --- Challenge ---
+class ChallengeCreateRequest(BaseModel):
+    """Start a personal challenge, optionally from a built-in framework."""
+
+    template_id: str | None = Field(default=None, max_length=64)
+    name: str | None = Field(default=None, max_length=120)
+    duration_days: int = Field(default=21, ge=7, le=90)
+    start_date: date | None = None
+    personal_tasks: list[str] = Field(min_length=2, max_length=10)
+    include_foundation: bool = True
+
+
 class ChallengeResponse(ORMModel):
     id: UUID
     name: str
@@ -109,6 +120,9 @@ class ChallengeDetailResponse(ChallengeResponse):
     recovery_hours_left: float | None = None
     days: list[ChallengeDaySummary] = []
     day_complete: bool = False
+    days_until_start: int = 0
+    points_today: int = 0
+    penalty_points: int = 0
 
 
 class CompleteTaskRequest(BaseModel):
@@ -168,6 +182,7 @@ class LeaderboardEntry(BaseModel):
     full_name: str
     avatar_url: str | None
     value: int
+    is_you: bool = False
 
 
 class WeeklyReportResponse(BaseModel):
@@ -180,19 +195,20 @@ class WeeklyReportResponse(BaseModel):
 
 # --- Groups ---
 class GroupCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=255)
     duration_days: int = Field(ge=21, le=30)
     max_missed_days: int = Field(default=3, ge=1, le=7)
     starts_at: date
-    foundation_tasks: list[str] = Field(min_length=2)
+    # Tasks the admin sets for everyone. Old app builds sent this as
+    # "foundation_tasks", so both names are accepted.
+    group_tasks: list[str] = Field(
+        default_factory=list,
+        max_length=15,
+        validation_alias=AliasChoices("group_tasks", "foundation_tasks"),
+    )
     task_mode: Literal["shared", "freedom"] = "shared"
-    personal_tasks: list[str] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def validate_freedom_personal(self):
-        if self.task_mode == "freedom" and len(self.personal_tasks) < 2:
-            raise ValueError("Freedom groups require at least 2 personal tasks")
-        return self
+    # The creator's own tasks when members choose their own ("freedom").
+    personal_tasks: list[str] = Field(default_factory=list, max_length=10)
 
 
 class GroupJoin(BaseModel):
@@ -204,9 +220,12 @@ class GroupInvitePreview(BaseModel):
     name: str
     duration_days: int
     task_mode: str
-    foundation_tasks: list[str]
+    group_tasks: list[str] = []
+    foundation_tasks: list[str] = []  # same list, kept for older app builds
     starts_at: date
     max_missed_days: int
+    leader_name: str | None = None
+    member_count: int = 0
 
 
 class ChallengeTaskCreate(BaseModel):
@@ -234,6 +253,7 @@ class GroupMemberStatus(BaseModel):
     role: str | None = None
     today_complete: bool = False
     hp: int = 0
+    group_points: int = 0
     current_streak: int = 0
     discipline_score: int = 0
     missed_days: int = 0
@@ -251,6 +271,7 @@ class GroupStatsSummary(BaseModel):
     completed_today: int = 0
     today_completion_percent: float = 0
     average_hp: int = 0
+    average_group_points: int = 0
     average_streak: int = 0
     your_rank: int = 1
     perfect_days: int = 0
@@ -300,3 +321,11 @@ class GroupUpdate(BaseModel):
     name: str | None = None
     max_missed_days: int | None = Field(default=None, ge=1, le=7)
     penalty_rules: dict | None = None
+
+
+class GroupTaskBody(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+
+
+class GroupMessageCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=1000)

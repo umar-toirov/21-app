@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../cache/app_cache.dart';
 import '../config/env.dart';
 import '../models/models.dart';
 import '../network/dio_client.dart';
@@ -59,6 +60,7 @@ class ApiRepository {
   }
 
   Future<void> signOut() async {
+    await AppCache.clear();
     await _supabase.auth.signOut();
   }
 
@@ -68,7 +70,9 @@ class ApiRepository {
 
   Future<ProfileModel> getProfile() async {
     final res = await _dio.get('/me');
-    return ProfileModel.fromJson(res.data as Map<String, dynamic>);
+    final json = res.data as Map<String, dynamic>;
+    AppCache.saveProfile(json);
+    return ProfileModel.fromJson(json);
   }
 
   Future<ProfileModel> updateProfile(Map<String, dynamic> data) async {
@@ -89,6 +93,35 @@ class ApiRepository {
     await _dio.post('/onboarding/complete');
   }
 
+  Future<void> skipOnboarding() async {
+    await _dio.post('/onboarding/skip');
+  }
+
+  Future<ChallengeCatalog> getChallengeCatalog() async {
+    final res = await _dio.get('/challenge-templates');
+    return ChallengeCatalog.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// Starts a personal challenge, today or on [startDate].
+  Future<void> createChallenge({
+    String? templateId,
+    required String name,
+    required int durationDays,
+    required DateTime startDate,
+    required List<String> tasks,
+    required bool includeFoundation,
+  }) async {
+    String two(int n) => n.toString().padLeft(2, '0');
+    await _dio.post('/challenges', data: {
+      if (templateId != null) 'template_id': templateId,
+      'name': name,
+      'duration_days': durationDays,
+      'start_date': '${startDate.year}-${two(startDate.month)}-${two(startDate.day)}',
+      'personal_tasks': tasks,
+      'include_foundation': includeFoundation,
+    });
+  }
+
   Future<List<GoalModel>> getGoals() async {
     final res = await _dio.get('/goals');
     return (res.data as List).map((e) => GoalModel.fromJson(e)).toList();
@@ -107,7 +140,9 @@ class ApiRepository {
 
   Future<ActiveProgramsModel> getActivePrograms() async {
     final res = await _dio.get('/challenges/active-all');
-    return ActiveProgramsModel.fromJson(res.data as Map<String, dynamic>);
+    final json = res.data as Map<String, dynamic>;
+    AppCache.savePrograms(json);
+    return ActiveProgramsModel.fromJson(json);
   }
 
   Future<List<ChallengeSummaryModel>> listChallenges() async {
@@ -133,6 +168,80 @@ class ApiRepository {
   Future<Map<String, dynamic>> getChallengeDay(String challengeId, int dayNumber) async {
     final res = await _dio.get('/challenges/$challengeId/days/$dayNumber');
     return res.data as Map<String, dynamic>;
+  }
+
+  Future<void> cancelChallenge(String challengeId) async {
+    await _dio.post('/challenges/$challengeId/cancel');
+  }
+
+  Future<Map<String, dynamic>> getActivity(String month) async {
+    final res = await _dio.get('/me/activity', queryParameters: {'month': month});
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getMyRank(String metric) async {
+    final res = await _dio.get('/leaderboard/me', queryParameters: {'metric': metric});
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<List<GroupRankModel>> getGroupsLeaderboard(String metric) async {
+    final res = await _dio.get('/leaderboard/groups', queryParameters: {'metric': metric});
+    return (res.data as List)
+        .map((e) => GroupRankModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> getGroupTasks(String groupId) async {
+    final res = await _dio.get('/groups/$groupId/tasks');
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> addGroupTask(String groupId, String title) async {
+    final res = await _dio.post('/groups/$groupId/tasks', data: {'title': title});
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> removeGroupTask(String groupId, String title) async {
+    final res = await _dio.delete('/groups/$groupId/tasks', queryParameters: {'title': title});
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<void> leaveGroup(String groupId) async {
+    await _dio.post('/groups/$groupId/leave');
+  }
+
+  Future<void> endGroup(String groupId) async {
+    await _dio.delete('/groups/$groupId');
+  }
+
+  /// Chat: latest page, or only messages after/before a known message id.
+  Future<({List<ChatMessageModel> messages, bool hasMore})> getGroupMessages(
+    String groupId, {
+    String? after,
+    String? before,
+    int limit = 50,
+  }) async {
+    final res = await _dio.get('/groups/$groupId/messages', queryParameters: {
+      if (after != null) 'after': after,
+      if (before != null) 'before': before,
+      'limit': limit,
+    });
+    final data = res.data as Map<String, dynamic>;
+    return (
+      messages: (data['messages'] as List)
+          .map((e) => ChatMessageModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      hasMore: data['has_more'] as bool? ?? false,
+    );
+  }
+
+  Future<ChatMessageModel> postGroupMessage(String groupId, String body) async {
+    final res = await _dio.post('/groups/$groupId/messages', data: {'body': body});
+    return ChatMessageModel.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteGroupMessage(String groupId, String messageId) async {
+    await _dio.delete('/groups/$groupId/messages/$messageId');
   }
 
   Future<List<LeaderboardEntryModel>> getLeaderboard(String metric) async {
@@ -252,16 +361,37 @@ final apiRepositoryProvider = Provider<ApiRepository>((ref) {
   return ApiRepository(ref.watch(dioProvider), ref.watch(supabaseProvider));
 });
 
-final profileProvider = FutureProvider<ProfileModel>((ref) async {
-  return ref.watch(apiRepositoryProvider).getProfile();
+/// Emits the cached profile immediately (if any), then the fresh one, so the
+/// app opens instantly even when the API is slow or asleep.
+final profileProvider = StreamProvider<ProfileModel>((ref) async* {
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  final cached = AppCache.profileFor(userId);
+  if (cached != null) yield ProfileModel.fromJson(cached);
+  try {
+    yield await ref.watch(apiRepositoryProvider).getProfile();
+  } catch (_) {
+    if (cached == null) rethrow; // keep showing cached data while offline
+  }
 });
 
 final activeChallengeProvider = FutureProvider<ChallengeModel?>((ref) async {
   return ref.watch(apiRepositoryProvider).getActiveChallenge();
 });
 
-final activeProgramsProvider = FutureProvider<ActiveProgramsModel>((ref) async {
-  return ref.watch(apiRepositoryProvider).getActivePrograms();
+final activeProgramsProvider = StreamProvider<ActiveProgramsModel>((ref) async* {
+  final cached = AppCache.programs;
+  ActiveProgramsModel? first;
+  if (cached != null) {
+    try {
+      first = ActiveProgramsModel.fromJson(cached);
+      yield first;
+    } catch (_) {}
+  }
+  try {
+    yield await ref.watch(apiRepositoryProvider).getActivePrograms();
+  } catch (_) {
+    if (first == null) rethrow;
+  }
 });
 
 final challengesListProvider = FutureProvider<List<ChallengeSummaryModel>>((ref) async {
@@ -271,6 +401,10 @@ final challengesListProvider = FutureProvider<List<ChallengeSummaryModel>>((ref)
 final challengeDetailProvider =
     FutureProvider.family<ChallengeModel, String>((ref, id) async {
   return ref.watch(apiRepositoryProvider).getChallenge(id);
+});
+
+final challengeCatalogProvider = FutureProvider<ChallengeCatalog>((ref) async {
+  return ref.watch(apiRepositoryProvider).getChallengeCatalog();
 });
 
 final goalsProvider = FutureProvider<List<GoalModel>>((ref) async {
@@ -305,4 +439,26 @@ final personalStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
 
 final authStateProvider = StreamProvider<AuthState>((ref) {
   return ref.watch(supabaseProvider).auth.onAuthStateChange;
+});
+
+/// The calendar month key used by the activity provider, e.g. `2026-09`.
+final activityProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, month) async {
+  return ref.watch(apiRepositoryProvider).getActivity(month);
+});
+
+final myRankProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, metric) async {
+  return ref.watch(apiRepositoryProvider).getMyRank(metric);
+});
+
+/// [metric] is `total` or `average`.
+final groupsLeaderboardProvider =
+    FutureProvider.autoDispose.family<List<GroupRankModel>, String>((ref, metric) async {
+  return ref.watch(apiRepositoryProvider).getGroupsLeaderboard(metric);
+});
+
+final groupTasksProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, groupId) async {
+  return ref.watch(apiRepositoryProvider).getGroupTasks(groupId);
 });

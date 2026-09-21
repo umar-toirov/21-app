@@ -31,7 +31,16 @@ class ChallengeCompleteScreen extends ConsumerWidget {
             child: Column(
               children: [
                 const Spacer(),
-                const BrandMascot(size: 130, variant: BrandLogoVariant.gold)
+                Container(
+                  width: 130,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    color: AppColors.goldSoft,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.gold, width: 3),
+                  ),
+                  child: const Icon(Icons.emoji_events_rounded, size: 68, color: AppColors.goldDepth),
+                )
                     .animate()
                     .scale(
                       begin: const Offset(0.5, 0.5),

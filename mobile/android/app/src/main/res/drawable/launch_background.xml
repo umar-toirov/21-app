@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Pre-Android 12 launch screen: brand emblem centred on the app background. -->
+<!-- Pre-Android 12 launch screen: brand navy with the icon glyph. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/splash_background" />
     <item>

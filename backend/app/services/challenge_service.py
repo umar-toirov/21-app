@@ -46,6 +46,15 @@ PERSONAL_TASK_TEMPLATES = {
     "other": ["Custom focus task", "Skill practice", "Reflection"],
 }
 
+MAX_PERSONAL_TASKS = 10
+
+# Points: every task earns points immediately, a perfect day adds a bonus,
+# and a missed day costs points (and resets the streak).
+TASK_POINTS = 5
+DAY_BONUS_POINTS = 10
+MISSED_DAY_PENALTY = 15
+MAX_START_AHEAD_DAYS = 60
+
 QUOTES = [
     ("Discipline is choosing between what you want now and what you want most.", "Abraham Lincoln"),
     ("We are what we repeatedly do. Excellence, then, is not an act, but a habit.", "Aristotle"),
@@ -96,65 +105,95 @@ class ChallengeService:
 
     async def create_from_onboarding(self, profile: Profile) -> Challenge:
         data = profile.onboarding_data or {}
-        goal_slug = data.get("goal", "other")
-        duration = data.get("duration_days", 21)
-        personal_tasks = data.get("personal_tasks", [])
+        raw_start = data.get("start_date")
+        return await self.create_personal_challenge(
+            profile,
+            name=data.get("name"),
+            goal_slug=data.get("goal", "other"),
+            duration_days=int(data.get("duration_days", 21)),
+            personal_tasks=list(data.get("personal_tasks", [])),
+            include_foundation=bool(data.get("include_foundation", True)),
+            start_date=date.fromisoformat(raw_start) if raw_start else None,
+        )
 
+    async def create_personal_challenge(
+        self,
+        profile: Profile,
+        *,
+        name: str | None,
+        goal_slug: str,
+        duration_days: int,
+        personal_tasks: list[str],
+        include_foundation: bool = True,
+        start_date: date | None = None,
+    ) -> Challenge:
+        """Create the user's personal challenge, starting today or on a later date."""
         active_result = await self.db.execute(
-            select(Challenge.id).where(
+            select(Challenge.id)
+            .where(
                 Challenge.user_id == profile.id,
                 Challenge.type == ChallengeType.INDIVIDUAL,
-                Challenge.status.in_(
-                    [ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY]
-                ),
-            ).limit(1)
+                Challenge.status.in_([ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY]),
+            )
+            .limit(1)
         )
         if active_result.scalar_one_or_none():
             raise ConflictError(
                 "Finish or leave your current personal challenge before starting another one"
             )
 
-        if len(personal_tasks) < 2:
-            raise AppError("VALIDATION", "Select at least 2 personal tasks")
+        if not 7 <= duration_days <= 90:
+            raise AppError("VALIDATION", "Duration must be between 7 and 90 days")
 
-        # Archive any leftover unpaid drafts so a fresh start is always ACTIVE.
-        pending = await self.db.execute(
-            select(Challenge).where(
-                Challenge.user_id == profile.id,
-                Challenge.status == ChallengeStatus.PENDING_PAYMENT,
+        tasks: list[str] = []
+        seen: set[str] = set()
+        for raw in personal_tasks:
+            title = (raw or "").strip()[:255]
+            if title and title.lower() not in seen:
+                seen.add(title.lower())
+                tasks.append(title)
+        if len(tasks) < 2:
+            raise AppError("VALIDATION", "Select at least 2 personal tasks")
+        if len(tasks) > MAX_PERSONAL_TASKS:
+            raise AppError("VALIDATION", f"Choose at most {MAX_PERSONAL_TASKS} personal tasks")
+
+        today = date.today()
+        start = start_date or today
+        if start < today:
+            start = today  # a client a day behind/ahead of the server clock still starts today
+        if start > today + timedelta(days=MAX_START_AHEAD_DAYS):
+            raise AppError(
+                "VALIDATION", f"Start date can be at most {MAX_START_AHEAD_DAYS} days ahead"
             )
-        )
-        for old in pending.scalars().all():
-            old.status = ChallengeStatus.ARCHIVED
 
         existing = await self.db.execute(
             select(func.count())
             .select_from(Challenge)
             .where(Challenge.user_id == profile.id, Challenge.type == ChallengeType.INDIVIDUAL)
         )
-        challenge_count = existing.scalar() or 0
-        is_first_free = challenge_count == 0
+        is_first_free = (existing.scalar() or 0) == 0
 
         goal_result = await self.db.execute(select(Goal).where(Goal.slug == goal_slug))
         goal = goal_result.scalar_one_or_none()
 
-        challenge_name = data.get("name") or f"{goal.name if goal else 'Personal'} {duration}-Day Discipline"
+        challenge_name = (name or "").strip() or (
+            f"{goal.name if goal else 'Personal'} {duration_days}-Day Discipline"
+        )
 
         challenge = Challenge(
             user_id=profile.id,
             goal_id=goal.id if goal else None,
-            name=challenge_name,
+            name=challenge_name[:255],
             type=ChallengeType.INDIVIDUAL,
-            duration_days=duration,
+            duration_days=duration_days,
             status=ChallengeStatus.ACTIVE,
-            start_date=date.today(),
+            start_date=start,
             current_day=1,
             is_first_free=is_first_free,
         )
         self.db.add(challenge)
         await self.db.flush()
 
-        include_foundation = bool(data.get("include_foundation", True))
         sort_base = 0
         if include_foundation:
             for i, title in enumerate(FOUNDATION_TASKS):
@@ -168,7 +207,7 @@ class ChallengeService:
                 )
             sort_base = len(FOUNDATION_TASKS)
 
-        for i, title in enumerate(personal_tasks):
+        for i, title in enumerate(tasks):
             self.db.add(
                 Task(
                     challenge_id=challenge.id,
@@ -178,18 +217,133 @@ class ChallengeService:
                 )
             )
 
-        for day_num in range(1, duration + 1):
+        for day_num in range(1, duration_days + 1):
             self.db.add(
                 ChallengeDay(
                     challenge_id=challenge.id,
                     day_number=day_num,
-                    calendar_date=date.today() + timedelta(days=day_num - 1),
+                    calendar_date=start + timedelta(days=day_num - 1),
                 )
             )
 
         profile.onboarding_step = 6
         await self.db.flush()
         return challenge
+
+    async def cancel_challenge(self, profile: Profile, challenge_id: UUID) -> Challenge:
+        """Stop a personal challenge. Points already earned are kept."""
+        result = await self.db.execute(
+            select(Challenge).where(Challenge.id == challenge_id, Challenge.user_id == profile.id)
+        )
+        challenge = result.scalar_one_or_none()
+        if not challenge:
+            raise NotFoundError("Challenge")
+        if challenge.type == ChallengeType.GROUP:
+            raise AppError(
+                "USE_LEAVE_GROUP", "This is a group challenge. Leave the group instead."
+            )
+        if challenge.status not in (ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY):
+            raise AppError("INVALID_STATE", "Only a running challenge can be cancelled")
+        challenge.status = ChallengeStatus.ARCHIVED
+        challenge.updated_at = utcnow()
+        await self.db.flush()
+        return challenge
+
+    async def activity_for_month(self, user_id: UUID, year: int, month: int) -> dict:
+        """Everything the user did (and missed) in a calendar month, for the home calendar."""
+        first = date(year, month, 1)
+        last = (date(year + (month == 12), (month % 12) + 1, 1)) - timedelta(days=1)
+        today = date.today()
+
+        done_rows = (
+            await self.db.execute(
+                select(
+                    ChallengeDay.calendar_date,
+                    Task.title,
+                    Task.type,
+                    Challenge.name,
+                    Challenge.type,
+                    TaskCompletion.completed_at,
+                )
+                .select_from(TaskCompletion)
+                .join(ChallengeDay, ChallengeDay.id == TaskCompletion.challenge_day_id)
+                .join(Task, Task.id == TaskCompletion.task_id)
+                .join(Challenge, Challenge.id == ChallengeDay.challenge_id)
+                .where(
+                    TaskCompletion.user_id == user_id,
+                    ChallengeDay.calendar_date >= first,
+                    ChallengeDay.calendar_date <= last,
+                )
+                .order_by(ChallengeDay.calendar_date, TaskCompletion.completed_at)
+            )
+        ).all()
+
+        day_rows = (
+            await self.db.execute(
+                select(ChallengeDay.calendar_date, ChallengeDay.is_complete)
+                .join(Challenge, Challenge.id == ChallengeDay.challenge_id)
+                .where(
+                    Challenge.user_id == user_id,
+                    Challenge.status.in_(
+                        [
+                            ChallengeStatus.ACTIVE,
+                            ChallengeStatus.RECOVERY,
+                            ChallengeStatus.COMPLETED,
+                            ChallengeStatus.FAILED,
+                        ]
+                    ),
+                    ChallengeDay.calendar_date >= first,
+                    ChallengeDay.calendar_date <= last,
+                )
+            )
+        ).all()
+
+        days: dict[date, dict] = {}
+
+        def entry(d: date) -> dict:
+            return days.setdefault(d, {"scheduled": 0, "complete": 0, "tasks": []})
+
+        for d, complete in day_rows:
+            e = entry(d)
+            e["scheduled"] += 1
+            e["complete"] += 1 if complete else 0
+        for d, title, task_type, challenge_name, challenge_type, completed_at in done_rows:
+            entry(d)["tasks"].append(
+                {
+                    "title": title,
+                    "kind": "group" if challenge_type == ChallengeType.GROUP else "personal",
+                    "challenge": challenge_name,
+                    "completed_at": as_utc(completed_at).isoformat() if completed_at else None,
+                }
+            )
+
+        out = []
+        for d in sorted(days):
+            e = days[d]
+            done = len(e["tasks"])
+            if e["scheduled"] and e["complete"] == e["scheduled"]:
+                status = "done"
+            elif d > today:
+                status = "upcoming"
+            elif done > 0:
+                status = "partial"
+            elif d < today and e["scheduled"]:
+                status = "missed"
+            elif e["scheduled"]:
+                status = "pending"
+            else:
+                status = "partial" if done else "none"
+            out.append({"date": d.isoformat(), "status": status, "done": done, "tasks": e["tasks"]})
+
+        return {
+            "month": f"{year:04d}-{month:02d}",
+            "days": out,
+            "totals": {
+                "tasks_done": len(done_rows),
+                "perfect_days": sum(1 for x in out if x["status"] == "done"),
+                "missed_days": sum(1 for x in out if x["status"] == "missed"),
+            },
+        }
 
     async def get_today_day(self, challenge: Challenge) -> ChallengeDay:
         result = await self.db.execute(
@@ -266,6 +420,12 @@ class ChallengeService:
         if challenge.status not in (ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY):
             raise AppError("INVALID_STATE", "Challenge is not active")
 
+        if self._days_until_start(challenge) > 0:
+            raise AppError(
+                "NOT_STARTED",
+                f"This challenge starts on {challenge.start_date:%b} {challenge.start_date.day}",
+            )
+
         task = next((t for t in challenge.tasks if t.id == task_id and t.is_active), None)
         if not task:
             raise NotFoundError("Task")
@@ -300,6 +460,11 @@ class ChallengeService:
         self.db.add(completion)
         await self.db.flush()
 
+        # Every completed task earns points right away.
+        hp_delta = TASK_POINTS
+        day.hp_delta = (day.hp_delta or 0) + TASK_POINTS
+        await self._add_hp(profile, challenge.id, TASK_POINTS, "task_complete")
+
         active_tasks = [t for t in challenge.tasks if t.is_active]
         if challenge.status == ChallengeStatus.RECOVERY:
             active_tasks = [t for t in active_tasks if t.type == TaskType.FOUNDATION]
@@ -310,20 +475,19 @@ class ChallengeService:
         done = set(completed_ids.scalars().all())
         day_complete = all(t.id in done for t in active_tasks)
 
-        hp_delta = 0
         celebration = False
 
         challenge_completed = False
         if day_complete and not day.is_complete:
             day.is_complete = True
             day.completed_at = utcnow()
-            # Daily completion reward: HP + streak. Score updates via recompute.
-            hp_delta = 10
+            # Perfect-day bonus + streak. Score updates via recompute.
             celebration = True
             profile.current_streak += 1
             profile.longest_streak = max(profile.longest_streak, profile.current_streak)
-            day.hp_delta = hp_delta
-            await self._add_hp(profile, challenge.id, hp_delta, "daily_complete")
+            hp_delta += DAY_BONUS_POINTS
+            day.hp_delta = (day.hp_delta or 0) + DAY_BONUS_POINTS
+            await self._add_hp(profile, challenge.id, DAY_BONUS_POINTS, "daily_complete")
 
             if challenge.status == ChallengeStatus.RECOVERY:
                 challenge.status = ChallengeStatus.ACTIVE
@@ -365,11 +529,18 @@ class ChallengeService:
             "celebration": celebration,
             "challenge_completed": challenge_completed,
             "reward_message": (
-                "+10 HP for completing today's tasks"
+                f"+{hp_delta} points · perfect day"
                 if celebration
-                else None
+                else f"+{hp_delta} points"
             ),
         }
+
+    @staticmethod
+    def _days_until_start(challenge: Challenge) -> int:
+        """Whole days until a personal challenge begins (0 once it has started)."""
+        if challenge.type != ChallengeType.INDIVIDUAL or not challenge.start_date:
+            return 0
+        return max(0, (challenge.start_date - date.today()).days)
 
     async def sync_calendar_day(self, profile: Profile, challenge: Challenge) -> Challenge:
         """Advance challenge days only when the calendar date moves past midnight."""
@@ -387,7 +558,13 @@ class ChallengeService:
             if day and not day.is_complete:
                 challenge.consecutive_missed += 1
                 profile.current_streak = 0
-                await self._add_hp(profile, challenge.id, -15, "missed_day")
+                await self._add_hp(
+                    profile, challenge.id, -MISSED_DAY_PENALTY, "missed_day"
+                )
+                # Transient (not stored): lets the API tell the user what just happened.
+                challenge._sync_penalty = (
+                    getattr(challenge, "_sync_penalty", 0) + MISSED_DAY_PENALTY
+                )
                 if challenge.consecutive_missed >= challenge.max_missed_days:
                     if challenge.status != ChallengeStatus.RECOVERY:
                         challenge.status = ChallengeStatus.RECOVERY
@@ -508,6 +685,13 @@ class ChallengeService:
         else:
             today_mission = "All tasks done today"
 
+        days_until_start = self._days_until_start(challenge)
+        if days_until_start > 0:
+            today_mission = (
+                f"Starts {challenge.start_date:%b} {challenge.start_date.day} "
+                f"(in {days_until_start} day{'s' if days_until_start != 1 else ''})"
+            )
+
         quote_idx = (profile.id.int % len(QUOTES) + challenge.current_day) % len(QUOTES)
         quote_text, quote_author = QUOTES[quote_idx]
         quote = f'"{quote_text}" — {quote_author}'
@@ -570,6 +754,9 @@ class ChallengeService:
             "recovery_hours_left": recovery_hours,
             "days": days_payload,
             "day_complete": day.is_complete,
+            "days_until_start": days_until_start,
+            "points_today": day.hp_delta or 0,
+            "penalty_points": getattr(challenge, "_sync_penalty", 0),
         }
 
     async def build_day_history(self, challenge: Challenge, day_number: int) -> dict:

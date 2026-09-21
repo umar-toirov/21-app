@@ -7,7 +7,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.exceptions import AppError
 from app.core.security import get_current_profile, get_current_user_id
+from app.data.challenge_templates import CATEGORIES, TEMPLATES, TEMPLATES_BY_ID
 from app.db.session import get_db
 from app.models.profile import (
     Badge,
@@ -25,6 +27,7 @@ from app.schemas.schemas import (
     AnnouncementCreate,
     BadgeResponse,
     CertificateResponse,
+    ChallengeCreateRequest,
     ChallengeDetailResponse,
     ChallengeResponse,
     ChallengeTaskCreate,
@@ -36,8 +39,10 @@ from app.schemas.schemas import (
     GroupDashboardResponse,
     GroupInvitePreview,
     GroupJoin,
+    GroupMessageCreate,
     GroupResponse,
     GroupSessionCreate,
+    GroupTaskBody,
     GroupUpdate,
     HpEventResponse,
     LeaderboardEntry,
@@ -122,7 +127,7 @@ async def create_profile(data: ProfileCreate, db: Annotated[AsyncSession, Depend
         email=data.email,
         full_name=data.full_name,
         discipline_score=0,
-        hp=100,
+        hp=0,
     )
     db.add(profile)
     await db.flush()
@@ -159,6 +164,23 @@ async def complete_onboarding(
     return challenge
 
 
+@router.post("/onboarding/skip")
+async def skip_onboarding(
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Finish onboarding without starting a challenge (e.g. to join a group first)."""
+    profile.onboarding_step = max(profile.onboarding_step, 6)
+    await db.flush()
+    return {"step": profile.onboarding_step}
+
+
+# --- Challenge frameworks ---
+@router.get("/challenge-templates")
+async def challenge_templates():
+    return {"categories": CATEGORIES, "templates": TEMPLATES}
+
+
 # --- Goals ---
 @router.get("/goals", response_model=list[GoalResponse])
 async def list_goals(db: Annotated[AsyncSession, Depends(get_db)]):
@@ -183,6 +205,51 @@ async def list_challenges(
         query = query.where(Challenge.status == status)
     result = await db.execute(query.order_by(Challenge.created_at.desc()))
     return result.scalars().all()
+
+
+@router.post("/challenges", response_model=ChallengeResponse)
+async def create_challenge(
+    data: ChallengeCreateRequest,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    template = None
+    if data.template_id:
+        template = TEMPLATES_BY_ID.get(data.template_id)
+        if not template:
+            raise AppError("VALIDATION", "Unknown challenge template")
+    service = ChallengeService(db)
+    return await service.create_personal_challenge(
+        profile,
+        name=data.name or (template["title"] if template else None),
+        goal_slug=template["goal"] if template else "other",
+        duration_days=data.duration_days,
+        personal_tasks=data.personal_tasks,
+        include_foundation=data.include_foundation,
+        start_date=data.start_date,
+    )
+
+
+@router.post("/challenges/{challenge_id}/cancel", response_model=ChallengeResponse)
+async def cancel_challenge(
+    challenge_id: UUID,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await ChallengeService(db).cancel_challenge(profile, challenge_id)
+
+
+@router.get("/me/activity")
+async def my_activity(
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+):
+    today = date.today()
+    year, mon = (int(x) for x in month.split("-")) if month else (today.year, today.month)
+    if not 1 <= mon <= 12:
+        raise AppError("VALIDATION", "Invalid month")
+    return await ChallengeService(db).activity_for_month(profile.id, year, mon)
 
 
 @router.get("/challenges/active", response_model=ChallengeDetailResponse | None)
@@ -392,19 +459,24 @@ async def personal_statistics(
     )
 
 
+_LEADERBOARD_METRICS = {
+    "discipline_score": Profile.discipline_score,
+    "hp": Profile.hp,
+    "longest_streak": Profile.longest_streak,
+    "challenges_completed": Profile.challenges_completed,
+}
+
+
 @router.get("/leaderboard", response_model=list[LeaderboardEntry])
 async def global_leaderboard(
+    profile: Annotated[Profile, Depends(get_current_profile)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    metric: str = Query(default="discipline_score"),
+    metric: str = Query(default="hp"),
     limit: int = Query(default=50, le=100),
 ):
-    column_map = {
-        "discipline_score": Profile.discipline_score,
-        "hp": Profile.hp,
-        "longest_streak": Profile.longest_streak,
-        "challenges_completed": Profile.challenges_completed,
-    }
-    col = column_map.get(metric, Profile.discipline_score)
+    if metric not in _LEADERBOARD_METRICS:
+        metric = "hp"
+    col = _LEADERBOARD_METRICS[metric]
     result = await db.execute(
         select(Profile)
         .where(Profile.is_deleted.is_(False))
@@ -418,10 +490,43 @@ async def global_leaderboard(
             user_id=p.id,
             full_name=p.full_name,
             avatar_url=p.avatar_url,
-            value=getattr(p, metric if metric != "longest_streak" else "longest_streak"),
+            value=getattr(p, metric),
+            is_you=p.id == profile.id,
         )
         for i, p in enumerate(profiles)
     ]
+
+
+@router.get("/leaderboard/me")
+async def my_leaderboard_rank(
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    metric: str = Query(default="hp"),
+):
+    """Your own rank, even when you are outside the top of the list."""
+    if metric not in _LEADERBOARD_METRICS:
+        metric = "hp"
+    col = _LEADERBOARD_METRICS[metric]
+    value = getattr(profile, metric)
+    ahead = await db.execute(
+        select(func.count())
+        .select_from(Profile)
+        .where(Profile.is_deleted.is_(False), col > value)
+    )
+    total = await db.execute(
+        select(func.count()).select_from(Profile).where(Profile.is_deleted.is_(False))
+    )
+    return {"rank": (ahead.scalar() or 0) + 1, "value": value, "total": total.scalar() or 0}
+
+
+@router.get("/leaderboard/groups")
+async def groups_leaderboard(
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    metric: str = Query(default="total", pattern="^(total|average)$"),
+    limit: int = Query(default=50, le=100),
+):
+    return await GroupService(db).groups_leaderboard(profile.id, metric, limit)
 
 
 @router.get("/statistics/me/weekly-report", response_model=WeeklyReportResponse)
@@ -433,7 +538,7 @@ async def weekly_report(profile: Annotated[Profile, Depends(get_current_profile)
     return WeeklyReportResponse(
         week_start=week_start,
         completion_percent=min(100.0, profile.current_streak * 14.3),
-        hp_delta=profile.hp - 100,
+        hp_delta=profile.hp,
         rank_change=0,
         message="Discipline wins today. Keep building.",
     )
@@ -616,6 +721,90 @@ async def group_statistics(
 ):
     service = GroupService(db)
     return await service.get_group_statistics(group_id, profile.id)
+
+
+@router.get("/groups/{group_id}/tasks")
+async def get_group_tasks(
+    group_id: UUID,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await GroupService(db).get_group_tasks(group_id, profile.id)
+
+
+@router.post("/groups/{group_id}/tasks")
+async def add_group_task(
+    group_id: UUID,
+    data: GroupTaskBody,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Admin: add a task for every member."""
+    return await GroupService(db).add_group_task(group_id, profile.id, data.title)
+
+
+@router.delete("/groups/{group_id}/tasks")
+async def remove_group_task(
+    group_id: UUID,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    title: str = Query(min_length=1, max_length=255),
+):
+    """Admin: remove a task from every member."""
+    return await GroupService(db).remove_group_task(group_id, profile.id, title)
+
+
+@router.post("/groups/{group_id}/leave")
+async def leave_group(
+    group_id: UUID,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await GroupService(db).leave_group(group_id, profile.id)
+    return {"left": True}
+
+
+@router.delete("/groups/{group_id}")
+async def end_group(
+    group_id: UUID,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await GroupService(db).end_group(group_id, profile.id)
+    return {"ended": True}
+
+
+@router.get("/groups/{group_id}/messages")
+async def list_group_messages(
+    group_id: UUID,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    after: UUID | None = None,
+    before: UUID | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
+):
+    return await GroupService(db).list_messages(group_id, profile.id, after, before, limit)
+
+
+@router.post("/groups/{group_id}/messages")
+async def post_group_message(
+    group_id: UUID,
+    data: GroupMessageCreate,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await GroupService(db).post_message(group_id, profile.id, data.body)
+
+
+@router.delete("/groups/{group_id}/messages/{message_id}")
+async def delete_group_message(
+    group_id: UUID,
+    message_id: UUID,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await GroupService(db).delete_message(group_id, message_id, profile.id)
+    return {"deleted": True}
 
 
 @router.patch("/groups/{group_id}")

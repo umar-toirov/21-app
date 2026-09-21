@@ -72,7 +72,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   icon: const Icon(Icons.arrow_back_rounded),
                 ),
               ),
-              const BrandLogo(size: 68, variant: BrandLogoVariant.auth)
+              const AppWordmark(size: 48)
                   .animate()
                   .fadeIn()
                   .moveY(begin: 12, end: 0),

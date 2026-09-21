@@ -7,6 +7,8 @@ import '../../../../app.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/how_it_works.dart';
+import '../../../../core/services/sound_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/shared_widgets.dart';
 
@@ -70,7 +72,9 @@ class SettingsScreen extends ConsumerWidget {
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
-                  SwitchListTile(
+                  Material(
+                    type: MaterialType.transparency,
+                    child: SwitchListTile(
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                     title: const Text('Notifications'),
@@ -82,6 +86,28 @@ class SettingsScreen extends ConsumerWidget {
                           .updateProfile({'notifications_enabled': v});
                       ref.invalidate(profileProvider);
                     },
+                  ),
+                  ),
+                  const _Hairline(),
+                  Material(
+                    type: MaterialType.transparency,
+                    child: StatefulBuilder(
+                      builder: (context, setLocal) => SwitchListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                        title: const Text('Sounds'),
+                        subtitle: Text(
+                          'Play a sound when you finish a task',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        ),
+                        value: SoundService.instance.enabled,
+                        onChanged: (v) {
+                          HapticFeedback.selectionClick();
+                          SoundService.instance.setEnabled(v);
+                          setLocal(() {});
+                        },
+                      ),
+                    ),
                   ),
                   const _Hairline(),
                   _NavRow(
@@ -100,6 +126,12 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   _NavRow(
+                    icon: Icons.lightbulb_outline_rounded,
+                    title: 'How it works',
+                    onTap: () => showHowItWorks(context),
+                  ),
+                  const _Hairline(),
+                  _NavRow(
                     icon: Icons.help_outline_rounded,
                     title: 'Support',
                     onTap: () => _showInfo(
@@ -113,11 +145,11 @@ class SettingsScreen extends ConsumerWidget {
                   const _Hairline(),
                   _NavRow(
                     icon: Icons.info_outline_rounded,
-                    title: 'About 21',
+                    title: 'About Habit Zone',
                     onTap: () => _showInfo(
                       context,
-                      'About 21',
-                      '21 is a discipline app by ILM HUB. Complete your daily '
+                      'About Habit Zone',
+                      'Habit Zone is a discipline app by ILM HUB. Complete your daily '
                           'tasks, keep your streak and grow with a group. '
                           'Challenges are free.',
                     ),
@@ -129,9 +161,9 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () => _showInfo(
                       context,
                       'Terms of Service',
-                      'By using 21 you agree to use it respectfully and to keep '
-                          'your account secure. Groups are for accountability, '
-                          'not chat; be kind to other members.',
+                      'By using Habit Zone you agree to use it respectfully and to keep '
+                          'your account secure. Groups are for accountability and '
+                          'encouragement; be kind in chat and to other members.',
                     ),
                   ),
                   const _Hairline(),

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  static const appName = '21';
+  static const appName = 'Habit Zone';
 
   static const _apiBaseUrlDefine = String.fromEnvironment(
     'API_BASE_URL',

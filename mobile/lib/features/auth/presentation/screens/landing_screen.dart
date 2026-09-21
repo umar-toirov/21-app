@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/config/env.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/shared_widgets.dart';
@@ -24,29 +25,33 @@ class LandingScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: const BrandLogo(size: 36, variant: BrandLogoVariant.full),
-                ).animate().fadeIn(duration: 450.ms),
-                const SizedBox(height: 36),
-                Text(
-                  '21',
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                        color: AppColors.orange,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 96,
-                        height: 0.85,
-                        letterSpacing: -4,
-                      ),
+                const SizedBox(height: 40),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: Image.asset(
+                    'assets/brand/app_icon.png',
+                    width: 96,
+                    height: 96,
+                    filterQuality: FilterQuality.high,
+                  ),
                 )
                     .animate()
-                    .fadeIn(duration: 500.ms)
+                    .fadeIn(duration: 400.ms)
                     .scale(
-                      begin: const Offset(0.72, 0.72),
+                      begin: const Offset(0.85, 0.85),
                       curve: Curves.easeOutBack,
-                      duration: 700.ms,
+                      duration: 600.ms,
                     ),
+                const SizedBox(height: 14),
+                Text(
+                  AppConfig.appName,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 34,
+                    letterSpacing: -0.8,
+                  ),
+                ).animate().fadeIn(delay: 60.ms),
                 const SizedBox(height: 12),
                 Text(
                   '21-Day Challenge\nfor Real Discipline',
@@ -58,16 +63,6 @@ class LandingScreen extends ConsumerWidget {
                     color: AppColors.textPrimary,
                   ),
                 ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.12, end: 0),
-                const SizedBox(height: 8),
-                const Text(
-                  'by ILM HUB',
-                  style: TextStyle(
-                    color: AppColors.teal,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.6,
-                    fontSize: 13,
-                  ),
-                ).animate().fadeIn(delay: 120.ms),
                 const SizedBox(height: 14),
                 Text(
                   'Build daily habits, protect your streak, and finish with proof.',
@@ -120,7 +115,7 @@ class LandingScreen extends ConsumerWidget {
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Or join a group challenge for shared accountability — not chat.',
+                          'Or join a group: shared tasks, a ranking and a chat to keep each other going.',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
@@ -152,6 +147,8 @@ class LandingScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                const MadeByIlmHub(),
                 const SizedBox(height: 24),
               ],
             ),

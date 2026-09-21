@@ -75,7 +75,7 @@ class Profile(Base):
     locale: Mapped[str] = mapped_column(String(8), default="en")
     onboarding_step: Mapped[int] = mapped_column(Integer, default=0)
     onboarding_data: Mapped[dict] = mapped_column(JSON, default=dict)
-    hp: Mapped[int] = mapped_column(Integer, default=100)
+    hp: Mapped[int] = mapped_column(Integer, default=0)
     discipline_score: Mapped[int] = mapped_column(Integer, default=0)
     current_streak: Mapped[int] = mapped_column(Integer, default=0)
     longest_streak: Mapped[int] = mapped_column(Integer, default=0)
@@ -366,3 +366,20 @@ class MotivationalQuote(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     author: Mapped[str | None] = mapped_column(String(128))
+
+
+class GroupMessage(Base):
+    """A chat message inside a group. Soft-deleted so threads keep their shape."""
+
+    __tablename__ = "group_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    group_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("groups.id"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("profiles.id"), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, index=True
+    )

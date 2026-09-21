@@ -4,96 +4,73 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../config/env.dart';
+import '../services/sound_service.dart';
 import '../theme/app_theme.dart';
 
-/// Floating ILM HUB emblem with subtle 3D bob + tilt.
-class BrandMascot extends StatelessWidget {
-  const BrandMascot({
-    super.key,
-    this.size = 140,
-    this.variant = BrandLogoVariant.color,
-    this.floating = true,
-  });
+/// The app mark and name. Uses the icon glyph that suits the current theme.
+class AppWordmark extends StatelessWidget {
+  const AppWordmark({super.key, this.size = 24});
 
   final double size;
-  final BrandLogoVariant variant;
-  final bool floating;
 
   @override
   Widget build(BuildContext context) {
-    Widget child = BrandLogo(size: size, variant: variant);
-
-    if (!floating) return child;
-
-    return child
-        .animate(onPlay: (c) => c.repeat(reverse: true))
-        .moveY(begin: 0, end: -8, duration: 1600.ms, curve: Curves.easeInOut)
-        .rotate(
-          begin: -0.03,
-          end: 0.03,
-          duration: 2200.ms,
-          curve: Curves.easeInOut,
-        );
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            AppColors.isDark
+                ? 'assets/brand/app_glyph.png'
+                : 'assets/brand/app_glyph_light.png',
+            width: size * 1.25,
+            height: size * 1.25,
+            filterQuality: FilterQuality.high,
+          ),
+          SizedBox(width: size * 0.2),
+          Text(
+            AppConfig.appName,
+            style: TextStyle(
+              fontSize: size,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -size * 0.03,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-enum BrandLogoVariant { color, gold, onBlue, full, fullDark, auth }
-
-class BrandLogo extends StatelessWidget {
-  const BrandLogo({
-    super.key,
-    this.size = 120,
-    this.variant = BrandLogoVariant.color,
-  });
-
-  final double size;
-  final BrandLogoVariant variant;
-
-  String get _asset {
-    switch (variant) {
-      case BrandLogoVariant.gold:
-        return 'assets/brand/icon_gold.png';
-      case BrandLogoVariant.onBlue:
-        return 'assets/brand/icon_on_blue.png';
-      case BrandLogoVariant.full:
-      case BrandLogoVariant.auth:
-        return 'assets/brand/logo_auth.png';
-      case BrandLogoVariant.fullDark:
-        return 'assets/brand/logo_auth.png';
-      case BrandLogoVariant.color:
-        return 'assets/brand/icon.png';
-    }
-  }
+/// Small credit line: the app is made by ILM HUB (no logo).
+class MadeByIlmHub extends StatelessWidget {
+  const MadeByIlmHub({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isFull = variant == BrandLogoVariant.full ||
-        variant == BrandLogoVariant.fullDark ||
-        variant == BrandLogoVariant.auth;
-    final image = Image.asset(
-      _asset,
-      height: size,
-      width: isFull ? size * 2.6 : size,
-      fit: BoxFit.contain,
-      filterQuality: FilterQuality.high,
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: 'Made by ',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          TextSpan(
+            text: 'ILM HUB',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ],
+      ),
+      style: const TextStyle(fontSize: 12.5),
+      textAlign: TextAlign.center,
     );
-    // The wordmark is dark navy; give it a light plate on dark backgrounds.
-    if (isFull && AppColors.isDark) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2F3F6),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Image.asset(
-          _asset,
-          height: size * 0.8,
-          fit: BoxFit.contain,
-          filterQuality: FilterQuality.high,
-        ),
-      );
-    }
-    return image;
   }
 }
 
@@ -372,6 +349,8 @@ class StatPill extends StatelessWidget {
   }
 }
 
+/// A task row: coloured icon tile, title + tag, points hint and a round check.
+/// Completing it plays a sound, a haptic tap and a small burst with "+points".
 class TaskTile extends StatefulWidget {
   const TaskTile({
     super.key,
@@ -379,6 +358,8 @@ class TaskTile extends StatefulWidget {
     required this.isCompleted,
     required this.onChanged,
     this.isFoundation = false,
+    this.points,
+    this.groupTask = false,
   });
 
   final String title;
@@ -386,90 +367,245 @@ class TaskTile extends StatefulWidget {
   final ValueChanged<bool?>? onChanged;
   final bool isFoundation;
 
+  /// Points shown before completing, and floated up in the burst.
+  final int? points;
+
+  /// Inside a group: admin-set tasks read "Group task", the member's own read "My task".
+  final bool groupTask;
+
   @override
   State<TaskTile> createState() => _TaskTileState();
 }
 
-class _TaskTileState extends State<TaskTile> {
+class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin {
+  late final AnimationController _fx = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
+
+  @override
+  void didUpdateWidget(covariant TaskTile old) {
+    super.didUpdateWidget(old);
+    if (!old.isCompleted && widget.isCompleted) {
+      _fx.forward(from: 0);
+      HapticFeedback.mediumImpact();
+      SoundService.instance.playTask();
+    }
+  }
+
+  @override
+  void dispose() {
+    _fx.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final done = widget.isCompleted;
-    return GestureDetector(
-      onTap: widget.onChanged == null || done
-          ? null
-          : () => widget.onChanged!(true),
-      child: AnimatedContainer(
-        duration: 250.ms,
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border, width: 1),
-          boxShadow: done
-              ? null
-              : [
-                  BoxShadow(
-                    color: AppColors.textPrimary.withValues(alpha: 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+    final accent = widget.isFoundation ? AppColors.goldDepth : AppColors.teal;
+    final canTap = widget.onChanged != null && !done;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: canTap ? () => widget.onChanged!(true) : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: done ? accent.withValues(alpha: 0.35) : AppColors.border,
+              ),
+            ),
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: done ? 0.08 : 0.14),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                ],
-        ),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration: 200.ms,
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: done ? AppColors.teal : Colors.transparent,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: done ? AppColors.teal : AppColors.borderStrong,
-                  width: 1.5,
+                  child: Icon(
+                    widget.groupTask && widget.isFoundation
+                        ? Icons.groups_rounded
+                        : (widget.isFoundation
+                            ? Icons.wb_sunny_rounded
+                            : Icons.task_alt_rounded),
+                    size: 22,
+                    color: accent.withValues(alpha: done ? 0.55 : 1),
+                  ),
                 ),
-              ),
-              child: done
-                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
-                  : null,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 220),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          height: 1.25,
+                          decoration: done ? TextDecoration.lineThrough : null,
+                          decorationColor: AppColors.textSecondary,
+                          color: done ? AppColors.textSecondary : AppColors.textPrimary,
+                        ),
+                        child: Text(widget.title),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.groupTask
+                            ? (widget.isFoundation ? 'Group task' : 'My task')
+                            : (widget.isFoundation ? 'Foundation' : 'Personal'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!done && widget.points != null) ...[
                   Text(
-                    widget.title,
+                    '+${widget.points}',
                     style: TextStyle(
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                      decoration: done ? TextDecoration.lineThrough : null,
-                      color: done ? AppColors.textSecondary : AppColors.textPrimary,
+                      color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.isFoundation ? 'Foundation' : 'Personal',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0,
-                      color: widget.isFoundation ? AppColors.goldDepth : AppColors.teal,
-                    ),
-                  ),
-                ],
-              ),
+                  const SizedBox(width: 10),
+                ] else
+                  const SizedBox(width: 6),
+                _CheckCircle(done: done, color: accent),
+              ],
             ),
-          ],
+          ),
+        ),
+        Positioned.fill(
+          bottom: 10,
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _fx,
+              builder: (_, __) => _fx.isDismissed
+                  ? const SizedBox.shrink()
+                  : CustomPaint(
+                      painter: _BurstPainter(
+                        progress: _fx.value,
+                        label: widget.points == null ? null : '+${widget.points}',
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CheckCircle extends StatelessWidget {
+  const _CheckCircle({required this.done, required this.color});
+
+  final bool done;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: done ? color : Colors.transparent,
+        border: Border.all(
+          color: done ? color : AppColors.borderStrong,
+          width: 2,
         ),
       ),
-    ).animate(target: done ? 1 : 0).scale(
-          begin: const Offset(1, 1),
-          end: const Offset(1.01, 1.01),
-          duration: 180.ms,
-        );
+      child: AnimatedScale(
+        scale: done ? 1 : 0,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.elasticOut,
+        child: const Icon(Icons.check_rounded, size: 18, color: Colors.white),
+      ),
+    );
   }
+}
+
+/// Ring + confetti dots around the check circle, and a "+points" label that
+/// floats up and fades.
+class _BurstPainter extends CustomPainter {
+  _BurstPainter({required this.progress, this.label});
+
+  final double progress;
+  final String? label;
+
+  static final _colors = [
+    AppColors.orange,
+    AppColors.teal,
+    AppColors.gold,
+    AppColors.success,
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width - 29, size.height / 2);
+    final t = Curves.easeOutCubic.transform(progress);
+    final fade = (1 - progress).clamp(0.0, 1.0);
+
+    canvas.drawCircle(
+      center,
+      15 + 26 * t,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5 * fade
+        ..color = AppColors.teal.withValues(alpha: 0.5 * fade),
+    );
+
+    const count = 12;
+    for (var i = 0; i < count; i++) {
+      final angle = (i / count) * 2 * math.pi + (i.isEven ? 0.15 : -0.15);
+      final distance = 14 + (i.isEven ? 40 : 28) * t;
+      final p = center + Offset(math.cos(angle), math.sin(angle)) * distance;
+      canvas.drawCircle(
+        p,
+        (i.isEven ? 3.4 : 2.4) * fade,
+        Paint()..color = _colors[i % _colors.length].withValues(alpha: fade),
+      );
+    }
+
+    final text = label;
+    if (text != null) {
+      final labelFade = progress < 0.65 ? 1.0 : ((1 - progress) / 0.35).clamp(0.0, 1.0);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.orange.withValues(alpha: labelFade),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(
+        canvas,
+        Offset(center.dx - tp.width - 26, center.dy - tp.height / 2 - 30 * t),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BurstPainter old) => old.progress != progress;
 }
 
 class EmptyState extends StatelessWidget {
@@ -494,10 +630,18 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const BrandMascot(size: 110, floating: false)
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: AppColors.orangeSoft,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Icon(icon, size: 38, color: AppColors.orange),
+            )
                 .animate()
-                .fadeIn(duration: 500.ms)
-                .scale(begin: const Offset(0.85, 0.85)),
+                .fadeIn(duration: 300.ms)
+                .scale(begin: const Offset(0.9, 0.9)),
             const SizedBox(height: 20),
             Text(
               title,

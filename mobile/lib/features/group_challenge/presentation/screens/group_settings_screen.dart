@@ -4,9 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../../core/network/api_error.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/shared_widgets.dart';
+import '../../../../core/widgets/task_list_editor.dart';
+import '../../../../core/router/app_router.dart';
+import 'create_group_screen.dart' show groupTaskSuggestions;
 import 'group_home_screen.dart';
 
 class GroupSettingsScreen extends ConsumerStatefulWidget {
@@ -52,6 +56,55 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  bool _tasksBusy = false;
+
+  Future<void> _changeTasks(Future<Map<String, dynamic>> Function() action) async {
+    setState(() => _tasksBusy = true);
+    try {
+      await action();
+      ref.invalidate(groupTasksProvider(widget.groupId));
+      ref.invalidate(activeProgramsProvider);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _tasksBusy = false);
+    }
+  }
+
+  Future<void> _endGroup() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('End this group?'),
+        content: const Text(
+          'The group challenge ends for everyone and the group stops appearing in rankings. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('End group', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(apiRepositoryProvider).endGroup(widget.groupId);
+      ref.invalidate(groupsProvider);
+      ref.invalidate(activeProgramsProvider);
+      ref.invalidate(activeChallengeProvider);
+      if (mounted) context.go('${AppRoutes.home}/groups');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+      }
     }
   }
 
@@ -112,6 +165,35 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
             isLoading: _saving,
             onPressed: () => _saveName(group),
           ),
+          const SizedBox(height: 28),
+          const Text('Tasks for everyone', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          const SizedBox(height: 6),
+          Text(
+            'Anything you add or remove here changes every member\'s day right away.',
+            style: TextStyle(fontSize: 13, height: 1.4, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 12),
+          ref.watch(groupTasksProvider(widget.groupId)).when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+                ),
+                error: (e, _) => Text(apiErrorMessage(e)),
+                data: (data) => TaskListEditor(
+                  tasks: List<String>.from(data['tasks'] as List),
+                  max: 15,
+                  busy: _tasksBusy,
+                  suggestions: groupTaskSuggestions,
+                  hint: 'Add a task for everyone',
+                  emptyText: 'No shared tasks. Members choose their own.',
+                  onAdd: (t) => _changeTasks(
+                    () => ref.read(apiRepositoryProvider).addGroupTask(widget.groupId, t),
+                  ),
+                  onRemove: (t) => _changeTasks(
+                    () => ref.read(apiRepositoryProvider).removeGroupTask(widget.groupId, t),
+                  ),
+                ),
+              ),
           const SizedBox(height: 28),
           const Text('Invite Members', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: 12),
@@ -181,6 +263,16 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
               ),
             );
           }),
+          const SizedBox(height: 28),
+          OutlinedButton.icon(
+            onPressed: _endGroup,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.danger,
+              side: const BorderSide(color: AppColors.danger),
+            ),
+            icon: const Icon(Icons.stop_circle_outlined),
+            label: const Text('End group'),
+          ),
         ],
       ),
     );

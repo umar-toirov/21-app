@@ -1,11 +1,27 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../core/network/api_error.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/shared_widgets.dart';
+import '../../../../core/widgets/task_list_editor.dart';
+
+const groupTaskSuggestions = [
+  'Read 20 pages',
+  'Workout 30 minutes',
+  'Study 1 hour',
+  'Wake up before 7',
+  'No phone before bed',
+  'Journal for 5 minutes',
+  'Walk 8,000 steps',
+  'Deep work 2 hours',
+];
+
+enum _Start { today, tomorrow, pick }
 
 class CreateGroupScreen extends ConsumerStatefulWidget {
   const CreateGroupScreen({super.key});
@@ -16,105 +32,92 @@ class CreateGroupScreen extends ConsumerStatefulWidget {
 
 class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   final _name = TextEditingController();
-  final _customPersonal = TextEditingController();
   int _duration = 21;
   int _maxMissed = 3;
-  bool _loading = false;
-  String _taskMode = 'shared';
+  bool _saving = false;
 
-  final _foundationOptions = const [
-    'Wake up before 7',
-    'Daily planning',
-    'Evening reflection',
-    'Read 20 minutes',
-    'Exercise 30 minutes',
-  ];
-  final Set<String> _selectedFoundation = {
-    'Wake up before 7',
-    'Daily planning',
-    'Evening reflection',
-  };
+  /// 'shared' = everyone does the admin's tasks. 'freedom' = members also pick their own.
+  String _mode = 'shared';
+  final List<String> _groupTasks = [];
+  final List<String> _ownTasks = [];
 
-  final _personalOptions = const [
-    'Study 1 hour',
-    'Workout 30 min',
-    'Journal',
-    'Read 30 pages',
-    'Deep work 2 hours',
-    'No phone before bed',
-  ];
-  final Set<String> _selectedPersonal = {};
+  _Start _startChoice = _Start.today;
+  late DateTime _start = _dateOnly(DateTime.now());
 
-  String _friendlyError(Object e) {
-    if (e is DioException) {
-      final data = e.response?.data;
-      if (data is Map) {
-        final detail = data['detail'];
-        if (detail is Map && detail['message'] is String) {
-          return detail['message'] as String;
-        }
-        if (detail is String) return detail;
-      }
-      if (e.response?.statusCode == 409) {
-        return 'Finish or leave your current challenge before starting a group.';
-      }
-      if (e.type == DioExceptionType.connectionError) {
-        return 'Cannot reach the server. Is the backend running?';
-      }
-    }
-    return e.toString();
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+  DateTime get _today => _dateOnly(DateTime.now());
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
   }
 
-  void _addCustomPersonal() {
-    final text = _customPersonal.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      _selectedPersonal.add(text);
-      _customPersonal.clear();
-    });
+  Future<void> _setStart(_Start choice) async {
+    HapticFeedback.selectionClick();
+    switch (choice) {
+      case _Start.today:
+        setState(() {
+          _startChoice = choice;
+          _start = _today;
+        });
+      case _Start.tomorrow:
+        setState(() {
+          _startChoice = choice;
+          _start = _today.add(const Duration(days: 1));
+        });
+      case _Start.pick:
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: _start,
+          firstDate: _today,
+          lastDate: _today.add(const Duration(days: 60)),
+          helpText: 'Choose a start date',
+        );
+        if (picked == null || !mounted) return;
+        setState(() {
+          _startChoice = choice;
+          _start = _dateOnly(picked);
+        });
+    }
   }
 
-  Future<void> _create() async {
-    if (_name.text.trim().isEmpty) return;
-    if (_selectedFoundation.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pick at least 2 foundation tasks')),
-      );
+  void _toast(String text) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(text),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
+      ));
+  }
+
+  Future<void> _submit() async {
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      _toast('Give your group a name.');
       return;
     }
-    if (_taskMode == 'freedom' && _selectedPersonal.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least 2 of your personal tasks')),
-      );
+    if (_mode == 'shared' && _groupTasks.isEmpty) {
+      _toast('Add at least one task for the group.');
+      return;
+    }
+    if (_mode == 'freedom' && _groupTasks.isEmpty && _ownTasks.isEmpty) {
+      _toast('Add at least one task for yourself or for the group.');
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Start group challenge?'),
-        content: const Text(
-          'Your personal challenge can keep running. Starting this group creates a '
-          'separate group program (one group challenge at a time).',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Continue')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _loading = true);
+    setState(() => _saving = true);
     try {
+      String two(int n) => n.toString().padLeft(2, '0');
       final group = await ref.read(apiRepositoryProvider).createGroup({
-        'name': _name.text.trim(),
+        'name': name,
         'duration_days': _duration,
         'max_missed_days': _maxMissed,
-        'starts_at': DateTime.now().toIso8601String().split('T').first,
-        'foundation_tasks': _selectedFoundation.toList(),
-        'task_mode': _taskMode,
-        if (_taskMode == 'freedom') 'personal_tasks': _selectedPersonal.toList(),
+        'starts_at': '${_start.year}-${two(_start.month)}-${two(_start.day)}',
+        'task_mode': _mode,
+        'group_tasks': _groupTasks,
+        'personal_tasks': _mode == 'freedom' ? _ownTasks : <String>[],
       });
       ref.invalidate(groupsProvider);
       ref.invalidate(activeChallengeProvider);
@@ -122,164 +125,330 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
       if (!mounted) return;
       context.pushReplacement('/groups/${group.id}/dashboard');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_friendlyError(e)),
-            backgroundColor: AppColors.orange,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted) return;
+      setState(() => _saving = false);
+      _toast(apiErrorMessage(e));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Group')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(controller: _name, decoration: const InputDecoration(labelText: 'Group Name')),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<int>(
-              initialValue: _duration,
-              decoration: const InputDecoration(labelText: 'Duration'),
-              items: const [
-                DropdownMenuItem(value: 21, child: Text('21 Days')),
-                DropdownMenuItem(value: 30, child: Text('30 Days')),
-              ],
-              onChanged: (v) => setState(() => _duration = v ?? 21),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<int>(
-              initialValue: _maxMissed,
-              decoration: const InputDecoration(labelText: 'Max Missed Days (penalty)'),
-              items: List.generate(5, (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}'))),
-              onChanged: (v) => setState(() => _maxMissed = v ?? 3),
-            ),
-            const SizedBox(height: 20),
-            const Text('Task mode', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'shared', label: Text('Same for all')),
-                ButtonSegment(value: 'freedom', label: Text('Add own tasks')),
-              ],
-              selected: {_taskMode},
-              onSelectionChanged: (s) => setState(() => _taskMode = s.first),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _taskMode == 'shared'
-                  ? 'Everyone uses the foundation tasks you pick below.'
-                  : 'Everyone gets your foundation tasks, plus their own personal tasks.',
-              style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Foundation tasks (shared with the group)',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _foundationOptions.map((task) {
-                final selected = _selectedFoundation.contains(task);
-                return FilterChip(
-                  label: Text(task),
-                  selected: selected,
-                  selectedColor: AppColors.orange.withValues(alpha: 0.15),
-                  checkmarkColor: AppColors.orange,
-                  onSelected: (v) {
-                    setState(() {
-                      if (v) {
-                        _selectedFoundation.add(task);
-                      } else {
-                        _selectedFoundation.remove(task);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            if (_taskMode == 'freedom') ...[
-              const SizedBox(height: 24),
-              Text(
-                'Your personal tasks (${_selectedPersonal.length}/2+)',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _personalOptions.map((task) {
-                  final selected = _selectedPersonal.contains(task);
-                  return FilterChip(
-                    label: Text(task),
-                    selected: selected,
-                    selectedColor: AppColors.teal.withValues(alpha: 0.15),
-                    checkmarkColor: AppColors.teal,
-                    onSelected: (v) {
-                      setState(() {
-                        if (v) {
-                          _selectedPersonal.add(task);
-                        } else {
-                          _selectedPersonal.remove(task);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _customPersonal,
-                      decoration: const InputDecoration(hintText: 'Custom personal task'),
-                      onSubmitted: (_) => _addCustomPersonal(),
-                    ),
+      appBar: AppBar(title: const Text('Create a group')),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                    children: [
+                      const _Note(
+                        icon: Icons.admin_panel_settings_rounded,
+                        text: 'You will be the admin. You set the tasks, invite people '
+                            'with a code, and can add or remove tasks for everyone at any time.',
+                      ),
+                      const SizedBox(height: 20),
+                      const _Label('Group name'),
+                      TextField(
+                        controller: _name,
+                        maxLength: 60,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          hintText: 'e.g. Morning Discipline Squad',
+                          counterText: '',
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      const _Label('How long?'),
+                      Row(
+                        children: [
+                          for (final d in const [21, 30])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _Pill(
+                                label: '$d days',
+                                selected: _duration == d,
+                                onTap: () => setState(() => _duration = d),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      const _Label('Start date'),
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<_Start>(
+                          showSelectedIcon: false,
+                          segments: const [
+                            ButtonSegment(value: _Start.today, label: Text('Today')),
+                            ButtonSegment(value: _Start.tomorrow, label: Text('Tomorrow')),
+                            ButtonSegment(
+                              value: _Start.pick,
+                              icon: Icon(Icons.calendar_month_rounded, size: 18),
+                              label: Text('Pick'),
+                            ),
+                          ],
+                          selected: {_startChoice},
+                          onSelectionChanged: (s) => _setStart(s.first),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _start == _today
+                            ? 'Starts today.'
+                            : 'Starts ${DateFormat('EEE, MMM d').format(_start)}.',
+                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 22),
+                      const _Label('Allowed missed days in a row'),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          for (final n in const [1, 2, 3, 4, 5])
+                            _Pill(
+                              label: '$n',
+                              selected: _maxMissed == n,
+                              onTap: () => setState(() => _maxMissed = n),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'A member who misses this many days in a row goes into recovery.',
+                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 26),
+                      const _Label('How do tasks work?'),
+                      _ModeCard(
+                        selected: _mode == 'shared',
+                        icon: Icons.groups_rounded,
+                        title: 'Same tasks for everyone',
+                        body: 'You choose the tasks. Every member does exactly these.',
+                        onTap: () => setState(() => _mode = 'shared'),
+                      ),
+                      const SizedBox(height: 10),
+                      _ModeCard(
+                        selected: _mode == 'freedom',
+                        icon: Icons.tune_rounded,
+                        title: 'Members choose their own',
+                        body: 'Each member picks their own tasks when they join. You can '
+                            'still add tasks that everyone must do.',
+                        onTap: () => setState(() => _mode = 'freedom'),
+                      ),
+                      const SizedBox(height: 26),
+                      _Label(_mode == 'shared'
+                          ? 'Tasks for everyone  ·  ${_groupTasks.length} of 15'
+                          : 'Tasks for everyone (optional)  ·  ${_groupTasks.length} of 15'),
+                      TaskListEditor(
+                        tasks: _groupTasks,
+                        max: 15,
+                        suggestions: groupTaskSuggestions,
+                        hint: 'Add a task for everyone',
+                        emptyText: _mode == 'shared'
+                            ? 'Add at least one task. Everyone will do it every day.'
+                            : 'Nothing required. Add one if you want everyone to share it.',
+                        onAdd: (t) => setState(() => _groupTasks.add(t)),
+                        onRemove: (t) => setState(() => _groupTasks.remove(t)),
+                      ),
+                      if (_mode == 'freedom') ...[
+                        const SizedBox(height: 26),
+                        _Label('Your own tasks  ·  ${_ownTasks.length} of 10'),
+                        TaskListEditor(
+                          tasks: _ownTasks,
+                          suggestions: groupTaskSuggestions,
+                          hint: 'Add a task for yourself',
+                          emptyText: 'You are a member too. Choose what you will do.',
+                          onAdd: (t) => setState(() => _ownTasks.add(t)),
+                          onRemove: (t) => setState(() => _ownTasks.remove(t)),
+                        ),
+                      ],
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: _addCustomPersonal,
+                ),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    border: Border(top: BorderSide(color: AppColors.border)),
                   ),
-                ],
-              ),
-              if (_selectedPersonal.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                ..._selectedPersonal.map(
-                  (t) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    title: Text(t),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => setState(() => _selectedPersonal.remove(t)),
-                    ),
+                  child: PrimaryButton(
+                    label: 'Create group',
+                    isLoading: _saving,
+                    onPressed: _submit,
                   ),
                 ),
               ],
-            ],
-            const SizedBox(height: 28),
-            PrimaryButton(label: 'Create Group', onPressed: _create, isLoading: _loading),
-          ],
+            ),
+          ),
         ),
       ),
     );
   }
+}
+
+class _Label extends StatelessWidget {
+  const _Label(this.text);
+
+  final String text;
 
   @override
-  void dispose() {
-    _name.dispose();
-    _customPersonal.dispose();
-    super.dispose();
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      );
+}
+
+class _Note extends StatelessWidget {
+  const _Note({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.orangeSoft,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: AppColors.orange),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 13.5, height: 1.4, color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.orange : AppColors.surface,
+      shape: StadiumBorder(
+        side: BorderSide(color: selected ? AppColors.orange : AppColors.borderStrong),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeCard extends StatelessWidget {
+  const _ModeCard({
+    required this.selected,
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.orangeSoft : AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(
+          color: selected ? AppColors.orange : AppColors.border,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.orange.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: AppColors.orange, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      body,
+                      style: TextStyle(fontSize: 13, height: 1.35, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              if (selected)
+                const Icon(Icons.check_circle_rounded, color: AppColors.orange, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

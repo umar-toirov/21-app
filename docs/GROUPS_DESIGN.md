@@ -1,6 +1,8 @@
+> **Update:** groups now include a simple text chat, admin-set group tasks (no foundation tasks), a group ranking and a groups leaderboard. Statements below that say groups are *not chat* are superseded — see `AGENTS.md` → *Groups v2*.
+
 # ILM HUB Groups — Design & Information Architecture
 
-> Signature accountability feature for the 21 app. Not chat — activity, progress, and team pressure done right.
+> Signature accountability feature for the Habit Zone app: activity, progress, ranking, chat and team pressure done right.
 
 ## User types
 

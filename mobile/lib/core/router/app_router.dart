@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../cache/app_cache.dart';
 import '../../features/auth/presentation/screens/auth_callback_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/landing_screen.dart';
@@ -12,6 +13,7 @@ import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/challenge/presentation/screens/challenge_dashboard_screen.dart';
 import '../../features/challenge/presentation/screens/challenge_detail_screen.dart';
 import '../../features/challenge/presentation/screens/challenge_history_screen.dart';
+import '../../features/challenge/presentation/screens/challenge_setup_screen.dart';
 import '../../features/challenge/presentation/screens/challenge_complete_screen.dart';
 import '../../features/challenge/presentation/screens/recovery_screen.dart';
 import '../../features/group_challenge/presentation/screens/create_group_screen.dart';
@@ -28,6 +30,7 @@ import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/shell/presentation/main_shell.dart';
 import '../../features/statistics/presentation/screens/statistics_screen.dart';
 import '../config/env.dart';
+import '../models/models.dart';
 
 class AppRoutes {
   static const landing = '/';
@@ -36,6 +39,7 @@ class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const authCallback = AppConfig.authCallbackPath;
   static const onboarding = '/onboarding';
+  static const newChallenge = '/challenge/new';
   static const home = '/home';
   static const recovery = '/recovery';
   static const challengeComplete = '/challenge-complete';
@@ -70,7 +74,11 @@ class AuthRefreshNotifier extends ChangeNotifier {
 
 GoRouter createRouter({Listenable? refreshListenable}) {
   return GoRouter(
-    initialLocation: AppRoutes.landing,
+    // Returning users skip the sign-in check that waits on the API.
+    initialLocation: Supabase.instance.client.auth.currentSession != null &&
+            AppCache.onboarded
+        ? AppRoutes.home
+        : AppRoutes.landing,
     refreshListenable: refreshListenable,
     errorBuilder: (context, state) => Scaffold(
       body: Center(
@@ -123,7 +131,7 @@ GoRouter createRouter({Listenable? refreshListenable}) {
 
       // Signed in on landing/login/signup → finish via callback (profile + routing).
       if (isAuth && isAuthRoute) {
-        return AppRoutes.authCallback;
+        return AppCache.onboarded ? AppRoutes.home : AppRoutes.authCallback;
       }
 
       return null;
@@ -141,6 +149,11 @@ GoRouter createRouter({Listenable? refreshListenable}) {
         builder: (_, __) => const AuthCallbackScreen(),
       ),
       GoRoute(path: AppRoutes.onboarding, builder: (_, __) => const OnboardingScreen()),
+      GoRoute(
+        path: AppRoutes.newChallenge,
+        builder: (_, state) =>
+            ChallengeSetupScreen(template: state.extra as ChallengeTemplate?),
+      ),
       GoRoute(path: AppRoutes.recovery, builder: (_, __) => const RecoveryScreen()),
       GoRoute(
         path: AppRoutes.challengeComplete,

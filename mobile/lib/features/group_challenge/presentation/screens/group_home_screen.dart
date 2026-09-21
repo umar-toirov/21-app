@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../../core/models/models.dart';
+import '../../../../core/network/api_error.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/how_it_works.dart';
 import '../../../../core/widgets/mockup_widgets.dart';
+import '../../../../core/widgets/ranking_widgets.dart';
 import '../../../../core/widgets/shared_widgets.dart';
+import '../widgets/group_chat.dart';
 import '../widgets/group_widgets.dart';
 
 final groupDashboardProvider =
@@ -30,9 +36,12 @@ final groupDayRosterProvider = FutureProvider.autoDispose
 });
 
 class GroupHomeScreen extends ConsumerStatefulWidget {
-  const GroupHomeScreen({super.key, required this.groupId});
+  const GroupHomeScreen({super.key, required this.groupId, this.initialTab = 0});
 
   final String groupId;
+
+  /// 0 Today, 1 Ranking, 2 Chat, 3 Stats.
+  final int initialTab;
 
   @override
   ConsumerState<GroupHomeScreen> createState() => _GroupHomeScreenState();
@@ -40,13 +49,8 @@ class GroupHomeScreen extends ConsumerStatefulWidget {
 
 class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabs;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(length: 3, vsync: this);
-  }
+  late final TabController _tabs =
+      TabController(length: 4, vsync: this, initialIndex: widget.initialTab.clamp(0, 3));
 
   @override
   void dispose() {
@@ -56,16 +60,9 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
 
   String _friendlyError(Object e) {
     final text = '$e';
-    if (text.contains('403')) {
-      return 'You do not have access to this group.';
-    }
-    if (text.contains('404')) {
-      return 'This group was not found.';
-    }
-    if (text.contains('SocketException') || text.contains('connection')) {
-      return 'Cannot reach the server. Make sure the backend is running.';
-    }
-    return text;
+    if (text.contains('403')) return 'You do not have access to this group.';
+    if (text.contains('404')) return 'This group was not found.';
+    return apiErrorMessage(e);
   }
 
   void _openMember(String userId) {
@@ -74,44 +71,52 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
 
   void _showInviteSheet(Map<String, dynamic> group) {
     final code = group['invite_code'] as String? ?? '';
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Invite to Group', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20)),
-            const SizedBox(height: 16),
-            QrImageView(data: 'ilmmode://join/$code', size: 160),
-            const SizedBox(height: 16),
-            Text(
-              code,
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 32, letterSpacing: 4, color: AppColors.navy),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Share code or QR with participants',
-              style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 20),
-            PrimaryButton(
-              label: 'Copy invite code',
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: code));
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Copied!')));
-                }
-              },
-            ),
-          ],
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Invite to group', style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: QrImageView(data: 'ilmmode://join/$code', size: 160),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                code,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 32,
+                  letterSpacing: 5,
+                  color: AppColors.orange,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Share this code. People join from Groups → Join.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 18),
+              PrimaryButton(
+                label: 'Copy invite code',
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: code));
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Copied!')));
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -159,17 +164,17 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
       ),
     );
 
-    if (ok != true || bodyCtrl.text.trim().isEmpty) {
-      titleCtrl.dispose();
-      bodyCtrl.dispose();
-      return;
-    }
+    final body = bodyCtrl.text.trim();
+    final title = titleCtrl.text.trim();
+    titleCtrl.dispose();
+    bodyCtrl.dispose();
+    if (ok != true || body.isEmpty) return;
 
     try {
       await ref.read(apiRepositoryProvider).postGroupAnnouncement(
             widget.groupId,
-            body: bodyCtrl.text.trim(),
-            title: titleCtrl.text.trim().isEmpty ? null : titleCtrl.text.trim(),
+            body: body,
+            title: title.isEmpty ? null : title,
             isPinned: pinned,
           );
       ref.invalidate(groupDashboardProvider(widget.groupId));
@@ -178,11 +183,52 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
       }
     }
-    titleCtrl.dispose();
-    bodyCtrl.dispose();
+  }
+
+  Future<void> _leave() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Leave this group?'),
+        content: const Text(
+          'Your group challenge will end and you will lose your place in the ranking. '
+          'You can join again later with the invite code.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Stay')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Leave', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(apiRepositoryProvider).leaveGroup(widget.groupId);
+      ref.invalidate(groupsProvider);
+      ref.invalidate(activeProgramsProvider);
+      ref.invalidate(activeChallengeProvider);
+      if (mounted) context.go('${AppRoutes.home}/groups');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+      }
+    }
+  }
+
+  Future<void> _openTasks() async {
+    final programs = await ref.read(activeProgramsProvider.future);
+    if (!mounted) return;
+    final group = programs.group;
+    if (group != null) {
+      context.push('/home/challenge/${group.id}');
+    } else {
+      context.go(AppRoutes.home);
+    }
   }
 
   @override
@@ -191,140 +237,186 @@ class _GroupHomeScreenState extends ConsumerState<GroupHomeScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: dashboardAsync.when(
-        loading: () => const GroupLoadingState(),
-        error: (e, _) => GroupErrorState(
-          message: _friendlyError(e),
-          onRetry: () => ref.invalidate(groupDashboardProvider(widget.groupId)),
-        ),
-        data: (data) {
-          final group = data['group'] as Map<String, dynamic>;
-          final stats = data['stats'] as Map<String, dynamic>? ?? {};
-          final members = data['members'] as List<dynamic>? ?? [];
-          final announcements = data['announcements'] as List<dynamic>? ?? [];
-          final feed = data['feed'] as List<dynamic>? ?? [];
-          final sessions = data['sessions'] as List<dynamic>? ?? [];
-          final isLeader = group['is_leader'] == true;
+      body: SafeArea(
+        child: dashboardAsync.when(
+          loading: () => const GroupLoadingState(),
+          error: (e, _) => GroupErrorState(
+            message: _friendlyError(e),
+            onRetry: () => ref.invalidate(groupDashboardProvider(widget.groupId)),
+          ),
+          data: (data) {
+            final group = data['group'] as Map<String, dynamic>;
+            final members = data['members'] as List<dynamic>? ?? [];
+            final announcements = data['announcements'] as List<dynamic>? ?? [];
+            final feed = data['feed'] as List<dynamic>? ?? [];
+            final sessions = data['sessions'] as List<dynamic>? ?? [];
+            final isLeader = group['is_leader'] == true;
 
-          return NestedScrollView(
-            headerSliverBuilder: (_, __) => [
-              SliverAppBar(
-                floating: true,
-                snap: true,
-                backgroundColor: AppColors.background,
-                title: Text(
-                  group['name'] as String? ?? 'Group',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.ios_share_rounded),
-                    onPressed: () => _showInviteSheet(group),
-                  ),
-                  if (isLeader)
-                    IconButton(
-                      icon: const Icon(Icons.settings_rounded),
-                      onPressed: () => context.push(
-                        '/groups/${widget.groupId}/settings',
-                        extra: {'group': group, 'members': members},
-                      ),
-                    ),
-                ],
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: TabBar(
-                      controller: _tabs,
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      dividerColor: Colors.transparent,
-                      indicator: BoxDecoration(
-                        color: AppColors.orange,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      labelColor: Colors.white,
-                      unselectedLabelColor: AppColors.textSecondary,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                      tabs: const [
-                        Tab(text: 'Home'),
-                        Tab(text: 'Leaderboard'),
-                        Tab(text: 'Statistics'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            body: TabBarView(
-              controller: _tabs,
+            return Column(
               children: [
-                _HomeTab(
-                  groupId: widget.groupId,
+                _GroupHeader(
                   group: group,
-                  stats: stats,
-                  announcements: announcements,
-                  feed: feed,
-                  sessions: sessions,
                   isLeader: isLeader,
-                  onCta: () async {
-                    final programs = await ref.read(activeProgramsProvider.future);
-                    if (!context.mounted) return;
-                    final groupChallenge = programs.group;
-                    if (groupChallenge != null) {
-                      context.go('/home/challenge/${groupChallenge.id}');
-                    } else {
-                      context.go(AppRoutes.home);
-                    }
-                  },
-                  onPostAnnouncement: () => _postAnnouncement(isLeader),
-                  onRefresh: () async => ref.invalidate(groupDashboardProvider(widget.groupId)),
-                  onTapMember: _openMember,
+                  onBack: () => context.canPop()
+                      ? context.pop()
+                      : context.go('${AppRoutes.home}/groups'),
+                  onInvite: () => _showInviteSheet(group),
+                  onSettings: () => context.push(
+                    '/groups/${widget.groupId}/settings',
+                    extra: {'group': group, 'members': members},
+                  ),
+                  onLeave: _leave,
+                  onHelp: () => showHowItWorks(context),
                 ),
-                _LeaderboardTab(
-                  members: members,
-                  onTapMember: _openMember,
-                  onRefresh: () async => ref.invalidate(groupDashboardProvider(widget.groupId)),
+                TabBar(
+                  controller: _tabs,
+                  labelColor: AppColors.textPrimary,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  indicatorColor: AppColors.orange,
+                  indicatorWeight: 3,
+                  dividerColor: AppColors.border,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  tabs: const [
+                    Tab(text: 'Today'),
+                    Tab(text: 'Ranking'),
+                    Tab(text: 'Chat'),
+                    Tab(text: 'Stats'),
+                  ],
                 ),
-                _StatisticsTab(groupId: widget.groupId),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabs,
+                    children: [
+                      _TodayTab(
+                        groupId: widget.groupId,
+                        group: group,
+                        members: members,
+                        announcements: announcements,
+                        feed: feed,
+                        sessions: sessions,
+                        isLeader: isLeader,
+                        onOpenTasks: _openTasks,
+                        onPostAnnouncement: () => _postAnnouncement(isLeader),
+                        onRefresh: () async {
+                          ref.invalidate(groupDashboardProvider(widget.groupId));
+                          ref.invalidate(activeProgramsProvider);
+                        },
+                        onTapMember: _openMember,
+                      ),
+                      _RankingTab(
+                        members: members,
+                        onTapMember: _openMember,
+                        onRefresh: () async => ref.invalidate(groupDashboardProvider(widget.groupId)),
+                      ),
+                      GroupChatTab(groupId: widget.groupId, isLeader: isLeader),
+                      _StatisticsTab(groupId: widget.groupId),
+                    ],
+                  ),
+                ),
               ],
-            ),
-          );
-        },
-      ),
-      floatingActionButton: dashboardAsync.maybeWhen(
-        data: (data) {
-          final isLeader = (data['group'] as Map)['is_leader'] == true;
-          if (!isLeader) return null;
-          return FloatingActionButton.extended(
-            backgroundColor: AppColors.orange,
-            onPressed: () => _postAnnouncement(true),
-            icon: const Icon(Icons.campaign_rounded, color: Colors.white),
-            label: const Text('Announce', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-          );
-        },
-        orElse: () => null,
+            );
+          },
+        ),
       ),
     );
   }
 }
 
-class _HomeTab extends StatefulWidget {
-  const _HomeTab({
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader({
+    required this.group,
+    required this.isLeader,
+    required this.onBack,
+    required this.onInvite,
+    required this.onSettings,
+    required this.onLeave,
+    required this.onHelp,
+  });
+
+  final Map<String, dynamic> group;
+  final bool isLeader;
+  final VoidCallback onBack;
+  final VoidCallback onInvite;
+  final VoidCallback onSettings;
+  final VoidCallback onLeave;
+  final VoidCallback onHelp;
+
+  @override
+  Widget build(BuildContext context) {
+    final day = group['current_day'] as int? ?? 1;
+    final total = group['duration_days'] as int? ?? 21;
+    final members = group['member_count'] as int? ?? 0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 4),
+      child: Row(
+        children: [
+          IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back_rounded)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  group['name'] as String? ?? 'Group',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  'Day $day of $total · $members member${members == 1 ? '' : 's'}',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Invite',
+            onPressed: onInvite,
+            icon: const Icon(Icons.person_add_alt_1_rounded),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            onSelected: (v) {
+              switch (v) {
+                case 'settings':
+                  onSettings();
+                case 'leave':
+                  onLeave();
+                case 'help':
+                  onHelp();
+              }
+            },
+            itemBuilder: (_) => [
+              if (isLeader)
+                const PopupMenuItem(value: 'settings', child: Text('Group settings')),
+              const PopupMenuItem(value: 'help', child: Text('How it works')),
+              if (!isLeader)
+                const PopupMenuItem(
+                  value: 'leave',
+                  child: Text('Leave group', style: TextStyle(color: AppColors.danger)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayTab extends ConsumerWidget {
+  const _TodayTab({
     required this.groupId,
     required this.group,
-    required this.stats,
+    required this.members,
     required this.announcements,
     required this.feed,
     required this.sessions,
     required this.isLeader,
-    required this.onCta,
+    required this.onOpenTasks,
     required this.onPostAnnouncement,
     required this.onRefresh,
     required this.onTapMember,
@@ -332,84 +424,469 @@ class _HomeTab extends StatefulWidget {
 
   final String groupId;
   final Map<String, dynamic> group;
-  final Map<String, dynamic> stats;
+  final List<dynamic> members;
   final List<dynamic> announcements;
   final List<dynamic> feed;
   final List<dynamic> sessions;
   final bool isLeader;
-  final VoidCallback onCta;
+  final VoidCallback onOpenTasks;
   final VoidCallback onPostAnnouncement;
   final Future<void> Function() onRefresh;
   final void Function(String userId) onTapMember;
 
   @override
-  State<_HomeTab> createState() => _HomeTabState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final me = members.cast<Map<String, dynamic>>().where((m) => m['is_you'] == true).firstOrNull;
+    final doneCount = members.where((m) => (m as Map)['today_complete'] == true).length;
+    final program = ref.watch(activeProgramsProvider).valueOrNull?.group;
+    final starts = DateTime.tryParse(group['starts_at'] as String? ?? '');
+    final notStarted = starts != null && starts.isAfter(DateTime.now());
+
+    return RefreshIndicator(
+      color: AppColors.orange,
+      onRefresh: onRefresh,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        children: [
+          if (notStarted)
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.orangeSoft,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.event_rounded, color: AppColors.orange, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'This group starts on ${DateFormat('EEE, MMM d').format(starts)}.',
+                      style: TextStyle(fontSize: 13.5, color: AppColors.textPrimary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          _MyDayCard(me: me, program: program, onOpenTasks: onOpenTasks),
+          const SizedBox(height: 20),
+          _DoneToday(members: members, doneCount: doneCount, onTap: onTapMember),
+          if (announcements.isNotEmpty || isLeader) ...[
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Text(
+                  'Announcements',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                if (isLeader)
+                  TextButton.icon(
+                    onPressed: onPostAnnouncement,
+                    icon: const Icon(Icons.campaign_rounded, size: 18),
+                    label: const Text('Post'),
+                  ),
+              ],
+            ),
+            if (announcements.isEmpty)
+              Text(
+                'Share news or reminders with everyone in the group.',
+                style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+              )
+            else
+              _AnnouncementList(announcements: announcements),
+          ],
+          if (sessions.isNotEmpty) ...[
+            const SizedBox(height: 22),
+            LiveSessionCard(sessions: sessions),
+          ],
+          if (feed.isNotEmpty) ...[
+            const SizedBox(height: 22),
+            GroupActivityFeed(feed: feed.take(8).toList()),
+          ],
+          if (isLeader) ...[
+            const SizedBox(height: 22),
+            _LeaderDayRosterSectionHost(groupId: groupId, onTapMember: onTapMember),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
-class _HomeTabState extends State<_HomeTab> {
-  late DateTime _rosterDate;
+/// Holds the roster date so the leader can browse days.
+class _LeaderDayRosterSectionHost extends StatefulWidget {
+  const _LeaderDayRosterSectionHost({required this.groupId, required this.onTapMember});
+
+  final String groupId;
+  final void Function(String userId) onTapMember;
 
   @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    _rosterDate = DateTime(now.year, now.month, now.day);
-  }
+  State<_LeaderDayRosterSectionHost> createState() => _LeaderDayRosterSectionHostState();
+}
 
-  Future<void> _pickDate() async {
-    final startsAt = DateTime.tryParse(widget.group['starts_at'] as String? ?? '');
-    final duration = widget.group['duration_days'] as int? ?? 21;
-    final first = startsAt ?? DateTime.now().subtract(const Duration(days: 30));
-    final last = first.add(Duration(days: duration - 1));
+class _LeaderDayRosterSectionHostState extends State<_LeaderDayRosterSectionHost> {
+  DateTime _date = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+
+  Future<void> _pick() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _rosterDate,
-      firstDate: first,
-      lastDate: last.isAfter(DateTime.now()) ? DateTime.now() : last,
+      initialDate: _date,
+      firstDate: DateTime.now().subtract(const Duration(days: 60)),
+      lastDate: DateTime.now(),
     );
     if (picked != null) {
-      setState(() => _rosterDate = DateTime(picked.year, picked.month, picked.day));
+      setState(() => _date = DateTime(picked.year, picked.month, picked.day));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final todayPct = (widget.stats['today_completion_percent'] as num?)?.toDouble() ?? 0;
+    return _LeaderDayRosterSection(
+      groupId: widget.groupId,
+      date: _date,
+      onSelectDate: (d) => setState(() => _date = d),
+      onPickDate: _pick,
+      onTapMember: widget.onTapMember,
+    );
+  }
+}
 
+class _AnnouncementList extends StatelessWidget {
+  const _AnnouncementList({required this.announcements});
+
+  final List<dynamic> announcements;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = announcements.cast<Map<String, dynamic>>().toList()
+      ..sort((a, b) => (b['is_pinned'] == true ? 1 : 0) - (a['is_pinned'] == true ? 1 : 0));
+    return Column(
+      children: [
+        for (final a in items.take(3))
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: a['is_pinned'] == true
+                    ? AppColors.orange.withValues(alpha: 0.5)
+                    : AppColors.border,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  a['is_pinned'] == true ? Icons.push_pin_rounded : Icons.campaign_rounded,
+                  size: 20,
+                  color: AppColors.orange,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if ((a['title'] as String?)?.isNotEmpty == true)
+                        Text(
+                          a['title'] as String,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      Text(
+                        a['body'] as String? ?? '',
+                        style: TextStyle(fontSize: 14, height: 1.4, color: AppColors.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MyDayCard extends StatelessWidget {
+  const _MyDayCard({required this.me, required this.program, required this.onOpenTasks});
+
+  final Map<String, dynamic>? me;
+  final ChallengeModel? program;
+  final VoidCallback onOpenTasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = program?.tasks.length ?? 0;
+    final done = program?.tasks.where((t) => t.isCompleted).length ?? 0;
+    final all = total > 0 && done == total;
+    final rank = me?['rank'];
+    final points = me?['group_points'] ?? 0;
+    final streak = me?['current_streak'] ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              if (total > 0)
+                AnimatedRing(
+                  progress: done / total,
+                  size: 60,
+                  stroke: 7,
+                  color: all ? AppColors.success : AppColors.orange,
+                  child: Text(
+                    '$done/$total',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: AppColors.orangeSoft,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(Icons.checklist_rounded, color: AppColors.orange),
+                ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      total == 0
+                          ? "Today's tasks"
+                          : (all ? 'All done for today' : '${total - done} task${total - done == 1 ? '' : 's'} left'),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      all ? 'Great work. See you tomorrow.' : 'Finish them to earn points for the group.',
+                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _Stat(label: 'Rank', value: rank == null ? '–' : '#$rank', color: AppColors.orange),
+              _Stat(label: 'Points', value: '$points', color: AppColors.textPrimary),
+              _Stat(label: 'Streak', value: '$streak', color: AppColors.textPrimary),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: PrimaryButton(
+              label: all ? 'Review today' : "Open today's tasks",
+              onPressed: onOpenTasks,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value, required this.color});
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: color),
+          ),
+          Text(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DoneToday extends StatelessWidget {
+  const _DoneToday({required this.members, required this.doneCount, required this.onTap});
+
+  final List<dynamic> members;
+  final int doneCount;
+  final void Function(String userId) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$doneCount of ${members.length} finished today',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 78,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: members.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) {
+              final m = members[i] as Map<String, dynamic>;
+              final done = m['today_complete'] == true;
+              final name = (m['full_name'] as String? ?? '?');
+              final first = name.split(' ').first;
+              return GestureDetector(
+                onTap: () => onTap(m['user_id'] as String),
+                child: SizedBox(
+                  width: 56,
+                  child: Column(
+                    children: [
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: done
+                                  ? AppColors.teal.withValues(alpha: 0.16)
+                                  : AppColors.border,
+                              border: Border.all(
+                                color: done ? AppColors.teal : Colors.transparent,
+                                width: 2,
+                              ),
+                            ),
+                            child: Text(
+                              name.isEmpty ? '?' : name[0].toUpperCase(),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 17,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (done)
+                            const Positioned(
+                              right: -2,
+                              bottom: -2,
+                              child: CircleAvatar(
+                                radius: 9,
+                                backgroundColor: AppColors.teal,
+                                child: Icon(Icons.check_rounded, size: 12, color: Colors.white),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        m['is_you'] == true ? 'You' : first,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RankingTab extends StatelessWidget {
+  const _RankingTab({
+    required this.members,
+    required this.onTapMember,
+    required this.onRefresh,
+  });
+
+  final List<dynamic> members;
+  final void Function(String userId) onTapMember;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = [
+      for (final raw in members)
+        () {
+          final m = raw as Map<String, dynamic>;
+          final streak = m['current_streak'] ?? 0;
+          return RankEntry(
+            rank: m['rank'] as int? ?? 0,
+            name: m['full_name'] as String? ?? 'Member',
+            value: m['group_points'] as int? ?? 0,
+            isYou: m['is_you'] == true,
+            subtitle: '$streak day streak${m['today_complete'] == true ? ' · done today' : ''}',
+            onTap: () => onTapMember(m['user_id'] as String),
+          );
+        }(),
+    ];
     return RefreshIndicator(
       color: AppColors.orange,
-      onRefresh: widget.onRefresh,
+      onRefresh: onRefresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          GroupHeroCard(
-            name: widget.group['name'] as String? ?? 'Group',
-            currentDay: widget.group['current_day'] as int? ?? 1,
-            durationDays: widget.group['duration_days'] as int? ?? 21,
-            memberCount: widget.group['member_count'] as int? ?? 0,
-            todayCompletionPercent: todayPct,
-            onCta: widget.onCta,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Ranked by the points each member earned in this group.',
+                  style: TextStyle(fontSize: 13, height: 1.4, color: AppColors.textSecondary),
+                ),
+              ),
+              IconButton(
+                tooltip: 'How points work',
+                onPressed: () => showPointsInfo(context),
+                icon: Icon(Icons.info_outline_rounded, color: AppColors.textSecondary),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          GroupStatGrid(stats: widget.stats),
-          const SizedBox(height: 24),
-          GroupProgressCard(percent: todayPct, stats: widget.stats),
-          if (widget.isLeader) ...[
-            const SizedBox(height: 24),
-            _LeaderDayRosterSection(
-              groupId: widget.groupId,
-              date: _rosterDate,
-              onSelectDate: (d) => setState(() => _rosterDate = d),
-              onPickDate: _pickDate,
-              onTapMember: widget.onTapMember,
-            ),
-          ],
-          const SizedBox(height: 24),
-          LiveSessionCard(sessions: widget.sessions),
-          if (widget.sessions.isNotEmpty) const SizedBox(height: 24),
-          PinnedAnnouncements(announcements: widget.announcements),
-          if (widget.announcements.any((a) => a['is_pinned'] == true)) const SizedBox(height: 20),
-          GroupActivityFeed(feed: widget.feed),
+          const SizedBox(height: 8),
+          RankList(entries: entries, emptyText: 'No members yet.'),
         ],
       ),
     );
@@ -469,50 +946,6 @@ class _LeaderDayRosterSection extends ConsumerWidget {
         onSelectDate: onSelectDate,
         onPickDate: onPickDate,
         onTapMember: onTapMember,
-      ),
-    );
-  }
-}
-
-class _LeaderboardTab extends StatelessWidget {
-  const _LeaderboardTab({
-    required this.members,
-    required this.onTapMember,
-    required this.onRefresh,
-  });
-
-  final List<dynamic> members;
-  final void Function(String userId) onTapMember;
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      color: AppColors.orange,
-      onRefresh: onRefresh,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        children: [
-          const Text(
-            'Team Leaderboard',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Ranked by group points from this program’s tasks',
-            style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 16),
-          GroupPodium(
-            members: members,
-            onTap: onTapMember,
-          ),
-          const SizedBox(height: 16),
-          ...members.map((m) => GroupLeaderboardTile(
-                member: m as Map<String, dynamic>,
-                onTap: () => onTapMember(m['user_id'] as String),
-              )),
-        ],
       ),
     );
   }

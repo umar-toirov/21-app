@@ -131,6 +131,10 @@ class ChallengeModel {
   final bool dayComplete;
   final String type;
   final String? groupId;
+  final DateTime? startDate;
+  final int daysUntilStart;
+  final int pointsToday;
+  final int penaltyPoints;
 
   ChallengeModel({
     required this.id,
@@ -149,6 +153,10 @@ class ChallengeModel {
     this.dayComplete = false,
     this.type = 'individual',
     this.groupId,
+    this.startDate,
+    this.daysUntilStart = 0,
+    this.pointsToday = 0,
+    this.penaltyPoints = 0,
   });
 
   factory ChallengeModel.fromJson(Map<String, dynamic> json) => ChallengeModel(
@@ -172,7 +180,16 @@ class ChallengeModel {
         dayComplete: json['day_complete'] as bool? ?? false,
         type: json['type'] as String? ?? 'individual',
         groupId: json['group_id'] as String?,
+        startDate: json['start_date'] == null
+            ? null
+            : DateTime.tryParse(json['start_date'] as String),
+        daysUntilStart: json['days_until_start'] as int? ?? 0,
+        pointsToday: json['points_today'] as int? ?? 0,
+        penaltyPoints: json['penalty_points'] as int? ?? 0,
       );
+
+  /// A personal challenge whose start date is still in the future.
+  bool get isScheduled => daysUntilStart > 0;
 
   bool get isRecovery => status == 'recovery';
   bool get isGroup => type == 'group';
@@ -243,6 +260,7 @@ class LeaderboardEntryModel {
   final String fullName;
   final String? avatarUrl;
   final int value;
+  final bool isYou;
 
   LeaderboardEntryModel({
     required this.rank,
@@ -250,6 +268,7 @@ class LeaderboardEntryModel {
     required this.fullName,
     this.avatarUrl,
     required this.value,
+    this.isYou = false,
   });
 
   factory LeaderboardEntryModel.fromJson(Map<String, dynamic> json) =>
@@ -259,6 +278,7 @@ class LeaderboardEntryModel {
         fullName: json['full_name'] as String,
         avatarUrl: json['avatar_url'] as String?,
         value: json['value'] as int,
+        isYou: json['is_you'] as bool? ?? false,
       );
 }
 
@@ -349,5 +369,159 @@ class CertificateModel {
         title: json['title'] as String,
         durationDays: json['duration_days'] as int,
         issuedAt: json['issued_at'] as String,
+      );
+}
+
+class ChallengeCategory {
+  final String id;
+  final String label;
+
+  const ChallengeCategory({required this.id, required this.label});
+
+  factory ChallengeCategory.fromJson(Map<String, dynamic> json) =>
+      ChallengeCategory(id: json['id'] as String, label: json['label'] as String);
+}
+
+/// A ready-made challenge framework (e.g. "Social Media Detox").
+class ChallengeTemplate {
+  final String id;
+  final String title;
+  final String category;
+  final String difficulty;
+  final String icon;
+  final String description;
+  final int durationDays;
+  final List<String> tasks;
+
+  const ChallengeTemplate({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.difficulty,
+    required this.icon,
+    required this.description,
+    required this.durationDays,
+    required this.tasks,
+  });
+
+  factory ChallengeTemplate.fromJson(Map<String, dynamic> json) => ChallengeTemplate(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        category: json['category'] as String,
+        difficulty: json['difficulty'] as String? ?? 'medium',
+        icon: json['icon'] as String? ?? 'flag',
+        description: json['description'] as String? ?? '',
+        durationDays: json['duration_days'] as int? ?? 21,
+        tasks: List<String>.from(json['tasks'] as List? ?? const []),
+      );
+
+  String get difficultyLabel =>
+      difficulty.isEmpty ? '' : difficulty[0].toUpperCase() + difficulty.substring(1);
+}
+
+class ChallengeCatalog {
+  final List<ChallengeCategory> categories;
+  final List<ChallengeTemplate> templates;
+
+  const ChallengeCatalog({required this.categories, required this.templates});
+
+  factory ChallengeCatalog.fromJson(Map<String, dynamic> json) => ChallengeCatalog(
+        categories: (json['categories'] as List)
+            .map((e) => ChallengeCategory.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        templates: (json['templates'] as List)
+            .map((e) => ChallengeTemplate.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// A group in the group leaderboard.
+class GroupRankModel {
+  final int rank;
+  final String groupId;
+  final String name;
+  final int memberCount;
+  final int totalPoints;
+  final int averagePoints;
+  final int currentDay;
+  final int durationDays;
+  final bool isYours;
+
+  const GroupRankModel({
+    required this.rank,
+    required this.groupId,
+    required this.name,
+    required this.memberCount,
+    required this.totalPoints,
+    required this.averagePoints,
+    required this.currentDay,
+    required this.durationDays,
+    required this.isYours,
+  });
+
+  factory GroupRankModel.fromJson(Map<String, dynamic> json) => GroupRankModel(
+        rank: json['rank'] as int,
+        groupId: json['group_id'] as String,
+        name: json['name'] as String,
+        memberCount: json['member_count'] as int? ?? 0,
+        totalPoints: json['total_points'] as int? ?? 0,
+        averagePoints: json['average_points'] as int? ?? 0,
+        currentDay: json['current_day'] as int? ?? 1,
+        durationDays: json['duration_days'] as int? ?? 21,
+        isYours: json['is_yours'] as bool? ?? false,
+      );
+}
+
+/// One chat message in a group.
+class ChatMessageModel {
+  final String id;
+  final String userId;
+  final String fullName;
+  final bool isLeader;
+  final bool isYou;
+  final String body;
+  final bool isDeleted;
+  final DateTime createdAt;
+
+  /// Local-only: still being sent, or failed to send.
+  final bool pending;
+  final bool failed;
+
+  const ChatMessageModel({
+    required this.id,
+    required this.userId,
+    required this.fullName,
+    required this.isLeader,
+    required this.isYou,
+    required this.body,
+    required this.isDeleted,
+    required this.createdAt,
+    this.pending = false,
+    this.failed = false,
+  });
+
+  factory ChatMessageModel.fromJson(Map<String, dynamic> json) => ChatMessageModel(
+        id: json['id'] as String,
+        userId: json['user_id'] as String,
+        fullName: json['full_name'] as String? ?? 'Member',
+        isLeader: json['is_leader'] as bool? ?? false,
+        isYou: json['is_you'] as bool? ?? false,
+        body: json['body'] as String? ?? '',
+        isDeleted: json['is_deleted'] as bool? ?? false,
+        createdAt: DateTime.tryParse(json['created_at'] as String? ?? '')?.toLocal() ??
+            DateTime.now(),
+      );
+
+  ChatMessageModel copyWith({bool? pending, bool? failed}) => ChatMessageModel(
+        id: id,
+        userId: userId,
+        fullName: fullName,
+        isLeader: isLeader,
+        isYou: isYou,
+        body: body,
+        isDeleted: isDeleted,
+        createdAt: createdAt,
+        pending: pending ?? this.pending,
+        failed: failed ?? this.failed,
       );
 }

@@ -2,12 +2,12 @@ from datetime import date, timedelta
 from statistics import mean
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AppError, ConflictError, ForbiddenError, NotFoundError
-from app.core.security import utcnow
+from app.core.security import as_utc, utcnow
 from app.models.profile import (
     Announcement,
     Challenge,
@@ -19,6 +19,7 @@ from app.models.profile import (
     GroupActivityType,
     GroupMember,
     GroupMemberRole,
+    GroupMessage,
     GroupSession,
     HpEvent,
     Profile,
@@ -26,7 +27,23 @@ from app.models.profile import (
     TaskCompletion,
     TaskType,
 )
-from app.services.challenge_service import FOUNDATION_TASKS, ChallengeService, generate_invite_code
+from app.services.challenge_service import ChallengeService, generate_invite_code
+
+MAX_GROUP_TASKS = 15
+MAX_OWN_TASKS = 10
+MAX_MESSAGES_PER_MINUTE = 15
+
+
+def _clean_titles(raw: list[str] | None, limit: int) -> list[str]:
+    """Trim, drop blanks and case-insensitive duplicates, cap the count."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw or []:
+        title = (item or "").strip()[:255]
+        if title and title.lower() not in seen:
+            seen.add(title.lower())
+            out.append(title)
+    return out[:limit]
 
 
 class GroupService:
@@ -73,25 +90,26 @@ class GroupService:
         await self.db.flush()
         return activity
 
-    async def _leader_foundation_tasks(self, group_id: UUID) -> list[str]:
+    async def _group_task_titles(self, group_id: UUID) -> list[str]:
+        """The tasks the admin set for everyone (stored on each member's challenge
+        as FOUNDATION-type tasks; the app calls them "group tasks")."""
         result = await self.db.execute(select(Group).where(Group.id == group_id))
         group = result.scalar_one_or_none()
         if not group:
-            return list(FOUNDATION_TASKS)
+            return []
         challenge_result = await self.db.execute(
             select(Challenge)
             .where(Challenge.group_id == group_id, Challenge.user_id == group.leader_id)
             .options(selectinload(Challenge.tasks))
         )
         challenge = challenge_result.scalar_one_or_none()
-        if not challenge or not challenge.tasks:
-            return list(FOUNDATION_TASKS)
-        tasks = [
+        if not challenge:
+            return []
+        return [
             t.title
             for t in sorted(challenge.tasks, key=lambda x: x.sort_order)
             if t.type == TaskType.FOUNDATION and t.is_active
         ]
-        return tasks if len(tasks) >= 2 else list(FOUNDATION_TASKS)
 
     async def _create_member_challenge(
         self,
@@ -160,13 +178,18 @@ class GroupService:
         if task_mode not in ("shared", "freedom"):
             raise AppError("VALIDATION", "task_mode must be 'shared' or 'freedom'")
 
-        personal_tasks = data.get("personal_tasks") or []
-        if task_mode == "freedom" and len(personal_tasks) < 2:
-            raise AppError("VALIDATION", "Freedom groups require at least 2 personal tasks")
+        group_tasks = _clean_titles(
+            data.get("group_tasks") or data.get("foundation_tasks"), MAX_GROUP_TASKS
+        )
+        own_tasks = _clean_titles(data.get("personal_tasks"), MAX_OWN_TASKS)
+        if task_mode == "shared" and not group_tasks:
+            raise AppError("VALIDATION", "Add at least one task for the group")
+        if task_mode == "freedom" and not own_tasks and not group_tasks:
+            raise AppError("VALIDATION", "Add at least one task for yourself or for the group")
 
         group = Group(
             leader_id=leader.id,
-            name=data["name"],
+            name=data["name"].strip(),
             invite_code=invite_code,
             duration_days=data["duration_days"],
             max_missed_days=data.get("max_missed_days", 3),
@@ -181,12 +204,11 @@ class GroupService:
             GroupMember(group_id=group.id, user_id=leader.id, role=GroupMemberRole.LEADER)
         )
 
-        foundation_tasks = data.get("foundation_tasks", FOUNDATION_TASKS)
         await self._create_member_challenge(
             leader,
             group,
-            foundation_tasks,
-            personal_tasks=personal_tasks if task_mode == "freedom" else None,
+            group_tasks,
+            personal_tasks=own_tasks if task_mode == "freedom" else None,
         )
 
         await self.record_activity(
@@ -208,14 +230,25 @@ class GroupService:
         if group.status != "active":
             raise AppError("GROUP_INACTIVE", "This group is no longer active")
 
-        foundation_tasks = await self._leader_foundation_tasks(group.id)
+        group_tasks = await self._group_task_titles(group.id)
+        leader = (
+            await self.db.execute(select(Profile).where(Profile.id == group.leader_id))
+        ).scalar_one_or_none()
+        member_count = (
+            await self.db.execute(
+                select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group.id)
+            )
+        ).scalar() or 0
         return {
             "name": group.name,
             "duration_days": group.duration_days,
             "task_mode": getattr(group, "task_mode", None) or "shared",
-            "foundation_tasks": foundation_tasks,
+            "group_tasks": group_tasks,
+            "foundation_tasks": group_tasks,
             "starts_at": group.starts_at,
             "max_missed_days": group.max_missed_days,
+            "leader_name": leader.full_name if leader else None,
+            "member_count": member_count,
         }
 
     async def join_group(
@@ -248,21 +281,21 @@ class GroupService:
             raise AppError("GROUP_FULL", "Group has reached maximum capacity")
 
         task_mode = getattr(group, "task_mode", None) or "shared"
-        personal = [t.strip() for t in (personal_tasks or []) if t and t.strip()]
-        if task_mode == "freedom" and len(personal) < 2:
+        group_tasks = await self._group_task_titles(group.id)
+        own_tasks = _clean_titles(personal_tasks, MAX_OWN_TASKS)
+        if task_mode == "freedom" and not own_tasks and not group_tasks:
             raise AppError(
                 "VALIDATION",
-                "This group lets members add their own tasks — pick at least 2",
+                "This group lets members choose their own tasks. Pick at least one.",
             )
 
         self.db.add(GroupMember(group_id=group.id, user_id=user.id, role=GroupMemberRole.MEMBER))
 
-        foundation_tasks = await self._leader_foundation_tasks(group.id)
         await self._create_member_challenge(
             user,
             group,
-            foundation_tasks,
-            personal_tasks=personal if task_mode == "freedom" else None,
+            group_tasks,
+            personal_tasks=own_tasks if task_mode == "freedom" else None,
         )
 
         await self.record_activity(
@@ -928,3 +961,314 @@ class GroupService:
             "ends_at": end_date.isoformat(),
             "members": members_out,
         }
+
+
+    # ------------------------------------------------------------------
+    # Group tasks (set by the admin for everyone)
+    # ------------------------------------------------------------------
+    async def _member_challenges(self, group_id: UUID) -> list[Challenge]:
+        result = await self.db.execute(
+            select(Challenge)
+            .where(
+                Challenge.group_id == group_id,
+                Challenge.status.in_(
+                    [ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY, ChallengeStatus.COMPLETED]
+                ),
+            )
+            .options(selectinload(Challenge.tasks))
+        )
+        return list(result.scalars().all())
+
+    async def get_group_tasks(self, group_id: UUID, requester_id: UUID) -> dict:
+        group, _, is_leader = await self._ensure_membership(group_id, requester_id)
+        return {
+            "task_mode": getattr(group, "task_mode", None) or "shared",
+            "tasks": await self._group_task_titles(group_id),
+            "can_edit": is_leader,
+        }
+
+    async def add_group_task(self, group_id: UUID, leader_id: UUID, title: str) -> dict:
+        group, _, is_leader = await self._ensure_membership(group_id, leader_id)
+        if not is_leader:
+            raise ForbiddenError("Only the admin can add tasks for everyone")
+        if group.status != "active":
+            raise AppError("GROUP_INACTIVE", "This group is no longer active")
+        clean = (title or "").strip()[:255]
+        if not clean:
+            raise AppError("VALIDATION", "Task title is required")
+
+        existing = await self._group_task_titles(group_id)
+        if clean.lower() in {t.lower() for t in existing}:
+            raise ConflictError("The group already has this task")
+        if len(existing) >= MAX_GROUP_TASKS:
+            raise AppError("VALIDATION", f"A group can have at most {MAX_GROUP_TASKS} tasks")
+
+        for challenge in await self._member_challenges(group_id):
+            order = max((t.sort_order for t in challenge.tasks), default=-1) + 1
+            self.db.add(
+                Task(
+                    challenge_id=challenge.id,
+                    title=clean,
+                    type=TaskType.FOUNDATION,
+                    sort_order=order,
+                )
+            )
+        await self.db.flush()
+        await self.record_activity(
+            group_id,
+            "announcement",
+            f'New task for everyone: "{clean}"',
+            leader_id,
+        )
+        return await self.get_group_tasks(group_id, leader_id)
+
+    async def remove_group_task(self, group_id: UUID, leader_id: UUID, title: str) -> dict:
+        group, _, is_leader = await self._ensure_membership(group_id, leader_id)
+        if not is_leader:
+            raise ForbiddenError("Only the admin can remove tasks for everyone")
+        clean = (title or "").strip().lower()
+        existing = await self._group_task_titles(group_id)
+        if clean not in {t.lower() for t in existing}:
+            raise NotFoundError("Task")
+        task_mode = getattr(group, "task_mode", None) or "shared"
+        if task_mode == "shared" and len(existing) <= 1:
+            raise AppError(
+                "VALIDATION", "A group where everyone does the same tasks needs at least one task"
+            )
+
+        for challenge in await self._member_challenges(group_id):
+            for task in challenge.tasks:
+                if task.type == TaskType.FOUNDATION and task.title.strip().lower() == clean:
+                    task.is_active = False
+        await self.db.flush()
+        return await self.get_group_tasks(group_id, leader_id)
+
+    # ------------------------------------------------------------------
+    # Leaving / ending
+    # ------------------------------------------------------------------
+    async def leave_group(self, group_id: UUID, user_id: UUID) -> None:
+        group, member, is_leader = await self._ensure_membership(group_id, user_id)
+        if is_leader:
+            raise AppError(
+                "LEADER_CANNOT_LEAVE",
+                "The admin can't leave. Remove members or end the group in settings.",
+            )
+        await self.db.delete(member)
+        result = await self.db.execute(
+            select(Challenge).where(Challenge.group_id == group_id, Challenge.user_id == user_id)
+        )
+        for challenge in result.scalars().all():
+            if challenge.status in (ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY):
+                challenge.status = ChallengeStatus.ARCHIVED
+        profile = (
+            await self.db.execute(select(Profile).where(Profile.id == user_id))
+        ).scalar_one_or_none()
+        await self.record_activity(
+            group_id,
+            GroupActivityType.MEMBER_JOINED.value,
+            f"{profile.full_name if profile else 'A member'} left the group",
+            user_id,
+        )
+        await self.db.flush()
+
+    async def end_group(self, group_id: UUID, leader_id: UUID) -> None:
+        group, _, is_leader = await self._ensure_membership(group_id, leader_id)
+        if not is_leader:
+            raise ForbiddenError("Only the admin can end the group")
+        group.status = "ended"
+        result = await self.db.execute(select(Challenge).where(Challenge.group_id == group_id))
+        for challenge in result.scalars().all():
+            if challenge.status in (ChallengeStatus.ACTIVE, ChallengeStatus.RECOVERY):
+                challenge.status = ChallengeStatus.ARCHIVED
+        await self.db.flush()
+
+    # ------------------------------------------------------------------
+    # Chat
+    # ------------------------------------------------------------------
+    def _message_out(self, m: GroupMessage, profile: Profile | None, viewer_id: UUID, leader_id: UUID) -> dict:
+        return {
+            "id": m.id,
+            "user_id": m.user_id,
+            "full_name": profile.full_name if profile else "Member",
+            "avatar_url": profile.avatar_url if profile else None,
+            "is_leader": str(m.user_id) == str(leader_id),
+            "body": "" if m.is_deleted else m.body,
+            "is_deleted": bool(m.is_deleted),
+            "created_at": as_utc(m.created_at).isoformat(),
+            "is_you": str(m.user_id) == str(viewer_id),
+        }
+
+    async def list_messages(
+        self,
+        group_id: UUID,
+        user_id: UUID,
+        after_id: UUID | None = None,
+        before_id: UUID | None = None,
+        limit: int = 50,
+    ) -> dict:
+        group, _, _ = await self._ensure_membership(group_id, user_id)
+        limit = max(1, min(limit, 100))
+
+        query = select(GroupMessage).where(GroupMessage.group_id == group_id)
+        newest_first = True
+        if after_id:
+            cursor = (
+                await self.db.execute(
+                    select(GroupMessage.created_at).where(
+                        GroupMessage.id == after_id, GroupMessage.group_id == group_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if cursor is not None:
+                # >= so equal timestamps are never skipped; the app de-duplicates by id.
+                query = query.where(GroupMessage.created_at >= cursor)
+                newest_first = False
+        elif before_id:
+            cursor = (
+                await self.db.execute(
+                    select(GroupMessage.created_at).where(
+                        GroupMessage.id == before_id, GroupMessage.group_id == group_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if cursor is not None:
+                query = query.where(GroupMessage.created_at < cursor)
+
+        if newest_first:
+            query = query.order_by(GroupMessage.created_at.desc(), GroupMessage.id).limit(limit)
+        else:
+            query = query.order_by(GroupMessage.created_at, GroupMessage.id).limit(limit)
+        rows = list((await self.db.execute(query)).scalars().all())
+        if newest_first:
+            rows.reverse()
+
+        user_ids = {m.user_id for m in rows}
+        profiles: dict[UUID, Profile] = {}
+        if user_ids:
+            result = await self.db.execute(select(Profile).where(Profile.id.in_(user_ids)))
+            profiles = {p.id: p for p in result.scalars().all()}
+        return {
+            "messages": [
+                self._message_out(m, profiles.get(m.user_id), user_id, group.leader_id) for m in rows
+            ],
+            "has_more": newest_first and len(rows) == limit,
+        }
+
+    async def post_message(self, group_id: UUID, user_id: UUID, body: str) -> dict:
+        group, _, _ = await self._ensure_membership(group_id, user_id)
+        if group.status != "active":
+            raise AppError("GROUP_INACTIVE", "This group has ended")
+        text = (body or "").strip()
+        if not text:
+            raise AppError("VALIDATION", "Write a message first")
+        text = text[:1000]
+
+        since = utcnow() - timedelta(seconds=60)
+        recent = (
+            await self.db.execute(
+                select(func.count())
+                .select_from(GroupMessage)
+                .where(
+                    GroupMessage.group_id == group_id,
+                    GroupMessage.user_id == user_id,
+                    GroupMessage.created_at >= since.replace(tzinfo=None),
+                )
+            )
+        ).scalar() or 0
+        if recent >= MAX_MESSAGES_PER_MINUTE:
+            raise AppError("RATE_LIMIT", "You're sending messages too fast. Wait a moment.", 429)
+
+        message = GroupMessage(group_id=group_id, user_id=user_id, body=text)
+        self.db.add(message)
+        await self.db.flush()
+        profile = (
+            await self.db.execute(select(Profile).where(Profile.id == user_id))
+        ).scalar_one_or_none()
+        return self._message_out(message, profile, user_id, group.leader_id)
+
+    async def delete_message(self, group_id: UUID, message_id: UUID, user_id: UUID) -> None:
+        group, _, is_leader = await self._ensure_membership(group_id, user_id)
+        message = (
+            await self.db.execute(
+                select(GroupMessage).where(
+                    GroupMessage.id == message_id, GroupMessage.group_id == group_id
+                )
+            )
+        ).scalar_one_or_none()
+        if not message:
+            raise NotFoundError("Message")
+        if str(message.user_id) != str(user_id) and not is_leader:
+            raise ForbiddenError("You can only delete your own messages")
+        message.is_deleted = True
+        await self.db.flush()
+
+    # ------------------------------------------------------------------
+    # Group leaderboard: groups ranked by their participants' points
+    # ------------------------------------------------------------------
+    async def groups_leaderboard(
+        self, user_id: UUID, metric: str = "total", limit: int = 50
+    ) -> list[dict]:
+        rows = (
+            await self.db.execute(
+                select(
+                    Challenge.group_id,
+                    Challenge.user_id,
+                    func.coalesce(func.sum(HpEvent.delta), 0),
+                )
+                .select_from(Challenge)
+                .join(
+                    HpEvent,
+                    and_(HpEvent.challenge_id == Challenge.id, HpEvent.user_id == Challenge.user_id),
+                    isouter=True,
+                )
+                .where(
+                    Challenge.group_id.is_not(None),
+                    Challenge.status != ChallengeStatus.ARCHIVED,
+                )
+                .group_by(Challenge.group_id, Challenge.user_id)
+            )
+        ).all()
+
+        totals: dict[UUID, int] = {}
+        for group_id, _member, points in rows:
+            totals[group_id] = totals.get(group_id, 0) + max(0, int(points or 0))
+
+        groups = (
+            await self.db.execute(select(Group).where(Group.status == "active"))
+        ).scalars().all()
+        counts = dict(
+            (
+                await self.db.execute(
+                    select(GroupMember.group_id, func.count()).group_by(GroupMember.group_id)
+                )
+            ).all()
+        )
+        mine = set(
+            (
+                await self.db.execute(
+                    select(GroupMember.group_id).where(GroupMember.user_id == user_id)
+                )
+            ).scalars().all()
+        )
+
+        board = []
+        for g in groups:
+            members = int(counts.get(g.id, 0))
+            total = totals.get(g.id, 0)
+            board.append(
+                {
+                    "group_id": g.id,
+                    "name": g.name,
+                    "member_count": members,
+                    "total_points": total,
+                    "average_points": round(total / members) if members else 0,
+                    "current_day": max(1, min(g.duration_days, (date.today() - g.starts_at).days + 1)),
+                    "duration_days": g.duration_days,
+                    "is_yours": g.id in mine,
+                }
+            )
+        key = "average_points" if metric == "average" else "total_points"
+        board.sort(key=lambda x: (-x[key], -x["member_count"], x["name"].lower()))
+        for i, row in enumerate(board[:limit]):
+            row["rank"] = i + 1
+        return board[:limit]

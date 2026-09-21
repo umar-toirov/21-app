@@ -65,7 +65,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const BrandLogo(size: 72, variant: BrandLogoVariant.auth)
+              const AppWordmark(size: 48)
                   .animate()
                   .fadeIn()
                   .scale(begin: const Offset(0.88, 0.88)),

@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/cache/app_cache.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -33,6 +34,7 @@ class GroupListScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            const _GroupsIntroCard(),
             Expanded(
               child: groupsAsync.when(
                 loading: () =>
@@ -147,6 +149,69 @@ class GroupListScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One-time explanation of how groups work. Hides itself once dismissed.
+class _GroupsIntroCard extends StatefulWidget {
+  const _GroupsIntroCard();
+
+  @override
+  State<_GroupsIntroCard> createState() => _GroupsIntroCardState();
+}
+
+class _GroupsIntroCardState extends State<_GroupsIntroCard> {
+  static const _flag = 'groups_intro_seen';
+  late bool _visible = !AppCache.flag(_flag);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_visible) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+      padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+      decoration: BoxDecoration(
+        color: AppColors.orangeSoft,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.lightbulb_rounded, color: AppColors.orange, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'How groups work',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Join with an invite code or create your own. The admin sets the tasks '
+                  '(or lets members choose theirs). Everyone earns points, the group has '
+                  'a ranking, and you can chat to keep each other going.',
+                  style: TextStyle(fontSize: 13.5, height: 1.4, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Got it',
+            onPressed: () {
+              AppCache.setFlag(_flag);
+              setState(() => _visible = false);
+            },
+            icon: Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+          ),
+        ],
       ),
     );
   }

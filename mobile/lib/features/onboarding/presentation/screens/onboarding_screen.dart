@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/models.dart';
+import '../../../../core/network/api_error.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/challenge_icons.dart';
+import '../../../../core/widgets/mockup_widgets.dart';
 import '../../../../core/widgets/shared_widgets.dart';
 
+/// Picks a challenge framework. Shown right after sign-up (with Skip, so people
+/// can join a group without a personal challenge) and from Home for a new one.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -17,588 +22,314 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  int _step = 0;
-  String? _goal;
-  int _duration = 21;
-  final List<String> _selectedTasks = [];
-  final _customTaskController = TextEditingController();
-  bool _notifications = true;
-  bool _includeFoundation = true;
-  bool _loading = false;
+  static const _customId = '_custom';
 
-  static const _steps = ['Goal', 'Duration', 'Foundation', 'Tasks', 'Commit'];
-
-  Future<void> _next() async {
-    if (_step == 0 && _goal == null) return;
-    if (_step == 3 && _selectedTasks.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least 2 personal tasks')),
-      );
-      return;
-    }
-
-    setState(() => _loading = true);
-    try {
-      await _saveCurrentStep();
-      if (_step < 4) {
-        if (!mounted) return;
-        setState(() {
-          _step++;
-          _loading = false;
-        });
-        return;
-      }
-
-      await ref.read(apiRepositoryProvider).completeOnboarding();
-      if (!mounted) return;
-      ref.invalidate(activeChallengeProvider);
-      ref.invalidate(activeProgramsProvider);
-      ref.invalidate(profileProvider);
-      ref.invalidate(groupsProvider);
-      if (!mounted) return;
-      context.go(AppRoutes.home);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  /// Persist the step the user is leaving (0-based UI → 1-based API).
-  Future<void> _saveCurrentStep() async {
-    final data = <String, dynamic>{};
-    final apiStep = _step + 1;
-    if (_step == 0 && _goal != null) data['goal'] = _goal;
-    if (_step == 1) data['duration_days'] = _duration;
-    if (_step == 2) data['include_foundation'] = _includeFoundation;
-    if (_step == 3) {
-      data['personal_tasks'] = List<String>.from(_selectedTasks);
-      data['notifications'] = _notifications;
-      data['include_foundation'] = _includeFoundation;
-    }
-    if (_step == 4) {
-      data['committed'] = true;
-      data['notifications'] = _notifications;
-      data['personal_tasks'] = List<String>.from(_selectedTasks);
-      data['include_foundation'] = _includeFoundation;
-    }
-    if (data.isNotEmpty) {
-      await ref.read(apiRepositoryProvider).saveOnboardingStep(apiStep, data);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final goalsAsync = ref.watch(goalsProvider);
-    final isCommit = _step == 4;
-
-    return Scaffold(
-      backgroundColor: isCommit ? AppColors.orangeSoft : null,
-      appBar: AppBar(
-        backgroundColor: isCommit ? AppColors.orangeSoft : null,
-        title: Text('Setup · ${_steps[_step]}'),
-        leading: _step > 0
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => setState(() => _step--))
-            : null,
-      ),
-      body: Container(
-        decoration: isCommit
-            ? BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.orangeSoft,
-                    AppColors.orangeSoft,
-                    AppColors.background,
-                  ],
-                  stops: const [0, 0.4, 1],
-                ),
-              )
-            : null,
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: (_step + 1) / _steps.length,
-                    minHeight: 10,
-                    color: AppColors.orange,
-                    backgroundColor: AppColors.borderStrong,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: switch (_step) {
-                    0 => _buildGoalStep(goalsAsync),
-                    1 => _buildDurationStep(),
-                    2 => _buildFoundationStep(),
-                    3 => _buildTasksStep(),
-                    _ => _buildCommitStep(),
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: isCommit
-                    ? PrimaryButton(
-                        label: 'I Commit — Start Day 1',
-                        onPressed: _next,
-                        isLoading: _loading,
-                      )
-                        .animate()
-                        .fadeIn(duration: 400.ms)
-                        .slideY(begin: 0.12, end: 0, curve: Curves.easeOutCubic)
-                    : PrimaryButton(
-                        label: 'Continue',
-                        onPressed: _next,
-                        isLoading: _loading,
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGoalStep(AsyncValue<List<GoalModel>> goalsAsync) {
-    final icons = <String, IconData>{
-      'ielts': Icons.school_rounded,
-      'sat': Icons.menu_book_rounded,
-      'programming': Icons.code_rounded,
-      'fitness': Icons.fitness_center_rounded,
-      'reading': Icons.auto_stories_rounded,
-      'quran': Icons.mosque_rounded,
-      'productivity': Icons.bolt_rounded,
-      'custom': Icons.flag_rounded,
-    };
-    final colors = [
-      AppColors.orange,
-      AppColors.teal,
-      AppColors.blue,
-      AppColors.goldDepth,
-      const Color(0xFF8B5CF6),
-      AppColors.hp,
-    ];
-
-    return goalsAsync.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.orange)),
-      error: (e, _) => Text('Error loading goals: $e'),
-      data: (goals) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Choose your goal',
-              style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          Text(
-            'What are you building discipline for?',
-            style: TextStyle(
-                fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 20),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: goals.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.15,
-            ),
-            itemBuilder: (_, i) {
-              final g = goals[i];
-              final selected = _goal == g.slug;
-              final color = colors[i % colors.length];
-              final icon = icons[g.slug.toLowerCase()] ??
-                  icons.entries
-                      .firstWhere(
-                        (e) => g.slug.toLowerCase().contains(e.key),
-                        orElse: () =>
-                            const MapEntry('custom', Icons.flag_rounded),
-                      )
-                      .value;
-              return GestureDetector(
-                onTap: () => setState(() => _goal = g.slug),
-                child: SoftCard(
-                  color: selected
-                      ? color.withValues(alpha: 0.1)
-                      : AppColors.surface,
-                  borderColor: selected ? color : AppColors.border,
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(icon, color: color),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        g.name,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: selected ? color : AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDurationStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Challenge duration',
-            style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 24),
-        _DurationCard(
-          days: 21,
-          selected: _duration == 21,
-          onTap: () => setState(() => _duration = 21),
-        ),
-        const SizedBox(height: 12),
-        _DurationCard(
-          days: 30,
-          selected: _duration == 30,
-          onTap: () => setState(() => _duration = 30),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFoundationStep() {
-    const tasks = ['Wake up on time', 'Daily planning', 'Evening review'];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Foundation tasks',
-            style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        Text(
-          'Optional habits that support every challenge. You can include them or skip.',
-          style: TextStyle(
-              color: AppColors.textSecondary, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 16),
-        SoftCard(
-          child: SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'Include foundation tasks',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              _includeFoundation
-                  ? 'Wake up, planning, and evening review will be added'
-                  : 'Only your personal tasks will be used',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            value: _includeFoundation,
-            activeThumbColor: AppColors.orange,
-            onChanged: (v) => setState(() => _includeFoundation = v),
-          ),
-        ),
-        if (_includeFoundation) ...[
-          const SizedBox(height: 16),
-          ...tasks.map(
-            (t) => TaskTile(
-              title: t,
-              isCompleted: false,
-              isFoundation: true,
-              onChanged: null,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildTasksStep() {
-    final templatesAsync =
-        _goal != null ? ref.watch(taskTemplatesProvider(_goal!)) : null;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Personal tasks',
-            style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        Text('Select at least 2 (${_selectedTasks.length} selected)'),
-        const SizedBox(height: 16),
-        if (templatesAsync != null)
-          templatesAsync.when(
-            loading: () => const CircularProgressIndicator(),
-            error: (e, _) => Text('$e'),
-            data: (templates) => Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: templates.map((t) {
-                final selected = _selectedTasks.contains(t);
-                return FilterChip(
-                  label: Text(t),
-                  selected: selected,
-                  onSelected: (v) {
-                    setState(() {
-                      if (v) {
-                        _selectedTasks.add(t);
-                      } else {
-                        _selectedTasks.remove(t);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _customTaskController,
-                decoration: const InputDecoration(hintText: 'Custom task'),
-                onSubmitted: (_) => _addCustomTask(),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: _addCustomTask,
-            ),
-          ],
-        ),
-        if (_selectedTasks.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text('Your personal tasks',
-              style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          ..._selectedTasks.map(
-            (t) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(t),
-              trailing: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => setState(() => _selectedTasks.remove(t)),
-              ),
-            ),
-          ),
-        ],
-        SwitchListTile(
-          title: const Text('Enable notifications'),
-          subtitle: const Text('Motivating mission reminders'),
-          value: _notifications,
-          onChanged: (v) => setState(() => _notifications = v),
-        ),
-      ],
-    );
-  }
-
-  void _addCustomTask() {
-    final t = _customTaskController.text.trim();
-    if (t.isNotEmpty && !_selectedTasks.contains(t)) {
-      setState(() {
-        _selectedTasks.add(t);
-        _customTaskController.clear();
-      });
-    }
-  }
-
-  Widget _buildCommitStep() {
-    final taskCount = _selectedTasks.length + (_includeFoundation ? 3 : 0);
-    final goalLabel = (_goal ?? 'goal').replaceAll('_', ' ');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 8),
-        Center(
-          child: Container(
-            width: 132,
-            height: 132,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0B1220),
-              borderRadius: BorderRadius.circular(36),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.navy.withValues(alpha: 0.35),
-                  blurRadius: 24,
-                  offset: const Offset(0, 14),
-                ),
-                BoxShadow(
-                  color: AppColors.teal.withValues(alpha: 0.18),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const BrandLogo(
-              size: 96,
-              variant: BrandLogoVariant.onBlue,
-            ),
-          ).animate().fadeIn(duration: 400.ms).scale(
-                begin: const Offset(0.92, 0.92),
-                curve: Curves.easeOutCubic,
-                duration: 450.ms,
-              ),
-        ),
-        const SizedBox(height: 28),
-        Text(
-          'Your commitment',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.1, end: 0),
-        const SizedBox(height: 8),
-        Text(
-          'Review your plan, then lock Day 1.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ).animate().fadeIn(delay: 120.ms),
-        const SizedBox(height: 24),
-        SoftCard(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-          child: Column(
-            children: [
-              _CommitSummaryRow(
-                icon: Icons.flag_rounded,
-                color: AppColors.orange,
-                label: 'Goal',
-                value: goalLabel,
-              ),
-              const Divider(height: 1),
-              _CommitSummaryRow(
-                icon: Icons.calendar_today_rounded,
-                color: AppColors.teal,
-                label: 'Duration',
-                value: '$_duration days',
-              ),
-              const Divider(height: 1),
-              _CommitSummaryRow(
-                icon: Icons.checklist_rounded,
-                color: AppColors.navy,
-                label: 'Daily tasks',
-                value: '$taskCount ready',
-              ),
-            ],
-          ),
-        )
-            .animate()
-            .fadeIn(delay: 160.ms)
-            .slideY(begin: 0.12, end: 0, curve: Curves.easeOutCubic),
-        const SizedBox(height: 20),
-        SoftCard(
-          color: AppColors.cream,
-          borderColor: AppColors.gold.withValues(alpha: 0.35),
-          child: Text(
-            'Discipline is choosing between what you want now and what you want most.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontStyle: FontStyle.italic,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
-            ),
-          ),
-        ).animate().fadeIn(delay: 220.ms),
-        const SizedBox(height: 16),
-        Text(
-          'By tapping "I Commit", you begin your training program.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-        ).animate().fadeIn(delay: 260.ms),
-      ],
-    );
-  }
+  final _search = TextEditingController();
+  String _query = '';
+  String _category = 'all';
+  String? _selected;
+  bool _skipping = false;
 
   @override
   void dispose() {
-    _customTaskController.dispose();
+    _search.dispose();
     super.dispose();
   }
-}
 
-class _CommitSummaryRow extends StatelessWidget {
-  const _CommitSummaryRow({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.value,
-  });
+  Future<void> _skip() async {
+    if (_skipping) return;
+    setState(() => _skipping = true);
+    try {
+      await ref.read(apiRepositoryProvider).skipOnboarding();
+      ref.invalidate(profileProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Join a group now. You can start your own challenge anytime from Home.'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(16, 0, 16, 92),
+        ),
+      );
+      context.go('${AppRoutes.home}/groups');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _skipping = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+    }
+  }
 
-  final IconData icon;
-  final Color color;
-  final String label;
-  final String value;
+  void _continue(ChallengeCatalog catalog) {
+    final id = _selected;
+    if (id == null) return;
+    final template = id == _customId
+        ? null
+        : catalog.templates.firstWhere((t) => t.id == id);
+    context.push(AppRoutes.newChallenge, extra: template);
+  }
+
+  List<ChallengeTemplate> _filtered(ChallengeCatalog catalog) {
+    final q = _query.trim().toLowerCase();
+    return catalog.templates.where((t) {
+      if (_category != 'all' && t.category != _category) return false;
+      if (q.isEmpty) return true;
+      return t.title.toLowerCase().contains(q) ||
+          t.description.toLowerCase().contains(q);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final catalogAsync = ref.watch(challengeCatalogProvider);
+    final firstTime = ref.watch(profileProvider).maybeWhen(
+          data: (p) => p.needsOnboarding,
+          orElse: () => false,
+        );
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: catalogAsync.when(
+              loading: () => Center(
+                child: CircularProgressIndicator(color: AppColors.orange),
+              ),
+              error: (e, _) => _LoadError(
+                message: apiErrorMessage(e),
+                onRetry: () => ref.invalidate(challengeCatalogProvider),
+              ),
+              data: (catalog) => _buildBody(context, catalog, firstTime),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, ChallengeCatalog catalog, bool firstTime) {
+    final items = _filtered(catalog);
+    final showCustom = _category == 'all' && _query.trim().isEmpty;
+
+    return LayoutBuilder(
+      builder: (context, box) {
+        final cols = box.maxWidth >= 640 ? 3 : 2;
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Row(
+                children: [
+                  if (context.canPop())
+                    _RoundIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      onTap: () => context.pop(),
+                    )
+                  else
+                    const SizedBox(width: 44),
+                  const Spacer(),
+                  if (firstTime)
+                    TextButton(
+                      onPressed: _skipping ? null : _skip,
+                      child: _skipping
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(
+                              'Skip',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: CustomScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                slivers: [
+                  SliverToBoxAdapter(child: _header(firstTime)),
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _FilterHeader(
+                      minHeight: 116,
+                      child: _filters(catalog),
+                    ),
+                  ),
+                  if (items.isEmpty && !showCustom)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _NoResults(
+                        onCreateOwn: () => setState(() {
+                          _search.clear();
+                          _query = '';
+                          _category = 'all';
+                          _selected = _customId;
+                        }),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                      sliver: SliverGrid(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: cols,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          mainAxisExtent: 176,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, i) {
+                            if (showCustom && i == 0) {
+                              return _CustomCard(
+                                selected: _selected == _customId,
+                                onTap: () => _select(_customId),
+                              );
+                            }
+                            final t = items[i - (showCustom ? 1 : 0)];
+                            return _TemplateCard(
+                              template: t,
+                              selected: _selected == t.id,
+                              onTap: () => _select(t.id),
+                            );
+                          },
+                          childCount: items.length + (showCustom ? 1 : 0),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            _BottomBar(
+              enabled: _selected != null,
+              label: _selected == null ? 'Choose a challenge' : 'Continue',
+              onPressed: () => _continue(catalog),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _select(String id) {
+    HapticFeedback.selectionClick();
+    setState(() => _selected = id);
+  }
+
+  Widget _header(bool firstTime) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.18),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
+          Text(
+            firstTime ? 'One last step' : 'New challenge',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: firstTime ? 'Pick your ' : 'Pick a '),
+                TextSpan(
+                  text: firstTime ? 'first' : 'new',
+                  style: const TextStyle(color: AppColors.orange),
                 ),
+                const TextSpan(text: ' challenge'),
               ],
             ),
-            child: Icon(icon, color: color, size: 20),
+            style: TextStyle(
+              fontSize: 30,
+              height: 1.15,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.8,
+              color: AppColors.textPrimary,
+            ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
+          const SizedBox(height: 8),
+          Text(
+            firstTime
+                ? 'Choose something meaningful. You can always add more later.'
+                : 'Choose a framework, then make it yours.',
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.4,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filters(ChallengeCatalog catalog) {
+    return Container(
+      color: AppColors.background,
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: TextField(
+              controller: _search,
+              onChanged: (v) => setState(() => _query = v),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search challenges…',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => setState(() {
+                          _search.clear();
+                          _query = '';
+                        }),
+                      ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(999),
+                  borderSide: BorderSide(color: AppColors.borderStrong),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(999),
+                  borderSide: BorderSide(color: AppColors.borderStrong),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(999),
+                  borderSide: const BorderSide(color: AppColors.orange, width: 1.5),
+                ),
               ),
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              children: [
+                _CategoryChip(
+                  label: 'All',
+                  selected: _category == 'all',
+                  onTap: () => setState(() => _category = 'all'),
+                ),
+                for (final c in catalog.categories)
+                  _CategoryChip(
+                    label: c.label,
+                    selected: _category == c.id,
+                    onTap: () => setState(() => _category = c.id),
+                  ),
+              ],
             ),
           ),
         ],
@@ -607,42 +338,340 @@ class _CommitSummaryRow extends StatelessWidget {
   }
 }
 
-class _DurationCard extends StatelessWidget {
-  const _DurationCard(
-      {required this.days, required this.selected, required this.onTap});
-  final int days;
+class _FilterHeader extends SliverPersistentHeaderDelegate {
+  _FilterHeader({required this.minHeight, required this.child});
+
+  final double minHeight;
+  final Widget child;
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => minHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+
+  @override
+  bool shouldRebuild(covariant _FilterHeader oldDelegate) => true;
+}
+
+class _RoundIconButton extends StatelessWidget {
+  const _RoundIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: AppColors.border),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(icon, color: AppColors.textPrimary, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: SoftCard(
-        color: selected
-            ? AppColors.orange.withValues(alpha: 0.1)
-            : AppColors.surface,
-        borderColor: selected ? AppColors.orange : AppColors.border,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$days Days',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: selected ? AppColors.orange : AppColors.textPrimary,
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: selected ? AppColors.orange : AppColors.surface,
+        shape: StadiumBorder(
+          side: BorderSide(color: selected ? AppColors.orange : AppColors.borderStrong),
+        ),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : AppColors.textPrimary,
+                ),
               ),
             ),
-            Text(
-              days == 21
-                  ? 'Classic discipline sprint'
-                  : 'Extended mastery program',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-            ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _TemplateCard extends StatelessWidget {
+  const _TemplateCard({
+    required this.template,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ChallengeTemplate template;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = challengeCategoryColor(template.category);
+    final diff = difficultyColor(template.difficulty);
+
+    return _CardShell(
+      selected: selected,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GlossyIcon(icon: challengeIcon(template.icon), color: color, size: 44),
+              const Spacer(),
+              if (selected)
+                const Icon(Icons.check_circle_rounded, color: AppColors.orange, size: 22),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            template.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${template.durationDays} days',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: diff.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  template.difficultyLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: diff,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomCard extends StatelessWidget {
+  const _CustomCard({required this.selected, required this.onTap});
+
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _CardShell(
+      selected: selected,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const GlossyIcon(icon: Icons.add_rounded, color: AppColors.orange, size: 44),
+              const Spacer(),
+              if (selected)
+                const Icon(Icons.check_circle_rounded, color: AppColors.orange, size: 22),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            'Create your own',
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Your goal, your tasks',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardShell extends StatelessWidget {
+  const _CardShell({
+    required this.selected,
+    required this.onTap,
+    required this.child,
+  });
+
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.orangeSoft : AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: selected ? AppColors.orange : AppColors.border,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(padding: const EdgeInsets.all(14), child: child),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({
+    required this.enabled,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final bool enabled;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: PrimaryButton(
+        label: label,
+        onPressed: enabled ? onPressed : null,
+      ),
+    );
+  }
+}
+
+class _NoResults extends StatelessWidget {
+  const _NoResults({required this.onCreateOwn});
+
+  final VoidCallback onCreateOwn;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off_rounded, size: 40, color: AppColors.muted),
+          const SizedBox(height: 12),
+          Text(
+            'No challenges found',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Try another word, or create your own.',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 16),
+          TextButton(onPressed: onCreateOwn, child: const Text('Create your own')),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadError extends StatelessWidget {
+  const _LoadError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.muted),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: 160,
+            child: PrimaryButton(label: 'Try again', onPressed: onRetry),
+          ),
+        ],
       ),
     );
   }

@@ -9,6 +9,7 @@ import '../../../../core/config/env.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/slow_loading_hint.dart';
 
 /// Handles post-OAuth redirect: wait for session, load profile, route to onboarding or home.
 class AuthCallbackScreen extends ConsumerStatefulWidget {
@@ -108,17 +109,7 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: _error == null
-              ? const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: AppColors.orange),
-                    SizedBox(height: 20),
-                    Text(
-                      'Signing you in…',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                    ),
-                  ],
-                )
+              ? const SlowLoadingHint(label: 'Signing you in…')
               : Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

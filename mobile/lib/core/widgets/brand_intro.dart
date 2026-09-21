@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import '../theme/app_theme.dart';
+import '../config/env.dart';
 
-/// Plays the ILM HUB brand intro once per app launch, then reveals [child].
+/// Brand navy: the same colour as the native Android launch screen, so the
+/// hand-off from the OS splash to this intro has no flash.
+const kBrandNavy = Color(0xFF033D95);
+
+/// Plays a short intro once per app launch, then reveals [child].
 ///
-/// The background matches the native Android splash so the hand-off from the
-/// OS launch screen to Flutter has no flash. Tap anywhere to skip.
+/// Shows the app icon, its name and a "Made by ILM HUB" credit. Tap to skip.
 class BrandIntroGate extends StatefulWidget {
   const BrandIntroGate({super.key, required this.child});
 
@@ -21,8 +24,8 @@ class BrandIntroGate extends StatefulWidget {
 class _BrandIntroGateState extends State<BrandIntroGate> {
   static bool _played = false;
 
-  static const _hold = Duration(milliseconds: 1900);
-  static const _fade = Duration(milliseconds: 320);
+  static const _hold = Duration(milliseconds: 1600);
+  static const _fade = Duration(milliseconds: 280);
 
   late bool _showing = !_played;
   bool _leaving = false;
@@ -67,7 +70,7 @@ class _BrandIntroGateState extends State<BrandIntroGate> {
                 opacity: _leaving ? 0 : 1,
                 duration: _fade,
                 curve: Curves.easeOut,
-                child: const _IntroScene(),
+                child: const BrandIntroScene(),
               ),
             ),
           ),
@@ -76,72 +79,94 @@ class _BrandIntroGateState extends State<BrandIntroGate> {
   }
 }
 
-class _IntroScene extends StatelessWidget {
-  const _IntroScene();
+class BrandIntroScene extends StatelessWidget {
+  const BrandIntroScene({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final dark = AppColors.isDark;
-    final bg = dark ? const Color(0xFF0C0D10) : Colors.white;
-    final wordmark = dark ? const Color(0xFFF2F3F6) : const Color(0xFF1E3A8A);
-    final sub = dark ? const Color(0xFF9A9EAB) : const Color(0xFF70737F);
-
-    return ColoredBox(
-      color: bg,
+    // This sits above the app's Navigator, so it needs its own Material for
+    // text to pick up the theme (otherwise Flutter shows a debug underline).
+    return Material(
+      color: kBrandNavy,
       child: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/brand/emblem.png',
-                height: 132,
-                filterQuality: FilterQuality.high,
-              )
-                  .animate()
-                  .fadeIn(duration: 380.ms, curve: Curves.easeOut)
-                  .scale(
-                    begin: const Offset(0.86, 0.86),
-                    end: const Offset(1, 1),
-                    duration: 700.ms,
-                    curve: Curves.easeOutCubic,
-                  ),
-              const SizedBox(height: 26),
-              Text(
-                'ILM HUB',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 7,
-                  color: wordmark,
+        child: Stack(
+          children: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      'assets/brand/app_glyph.png',
+                      width: 150,
+                      height: 150,
+                      filterQuality: FilterQuality.high,
+                    )
+                        .animate()
+                        .fadeIn(duration: 300.ms)
+                        .scale(
+                          begin: const Offset(0.86, 0.86),
+                          end: const Offset(1, 1),
+                          duration: 650.ms,
+                          curve: Curves.easeOutCubic,
+                        ),
+                    const SizedBox(height: 22),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        AppConfig.appName,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 38,
+                          height: 1.1,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.8,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ).animate(delay: 250.ms).fadeIn(duration: 380.ms).slideY(
+                          begin: 0.25,
+                          end: 0,
+                          curve: Curves.easeOutCubic,
+                        ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Discipline today, success tomorrow',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xCCFFFFFF),
+                      ),
+                    ).animate(delay: 450.ms).fadeIn(duration: 400.ms),
+                  ],
                 ),
-              )
-                  .animate(delay: 380.ms)
-                  .fadeIn(duration: 420.ms)
-                  .slideY(begin: 0.4, end: 0, curve: Curves.easeOutCubic),
-              const SizedBox(height: 10),
-              Container(
-                width: 34,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: AppColors.orange,
-                  borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 28,
+              child: const Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: 'Made by ', style: TextStyle(color: Color(0x99FFFFFF))),
+                    TextSpan(
+                      text: 'ILM HUB',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
                 ),
-              )
-                  .animate(delay: 640.ms)
-                  .fadeIn(duration: 300.ms)
-                  .scaleX(begin: 0, end: 1, duration: 420.ms, curve: Curves.easeOutCubic),
-              const SizedBox(height: 16),
-              Text(
-                'Discipline today, success tomorrow',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: sub,
-                ),
-              ).animate(delay: 820.ms).fadeIn(duration: 480.ms),
-            ],
-          ),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13),
+              ).animate(delay: 600.ms).fadeIn(duration: 400.ms),
+            ),
+          ],
         ),
       ),
     );

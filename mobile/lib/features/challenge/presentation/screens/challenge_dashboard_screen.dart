@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,8 +8,41 @@ import '../../../../core/models/models.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/how_it_works.dart';
+import '../../../../core/widgets/slow_loading_hint.dart';
+import '../widgets/activity_calendar.dart';
 import '../../../../core/widgets/mockup_widgets.dart';
 import '../../../../core/widgets/shared_widgets.dart';
+
+bool _walkthroughQueued = false;
+
+/// Missed-day notices already shown this session (they must not repeat).
+final Set<String> _shownPenalties = {};
+
+void _showPenaltyNotice(BuildContext context, ActiveProgramsModel programs) {
+  for (final c in [programs.personal, programs.group]) {
+    if (c == null || c.penaltyPoints <= 0) continue;
+    final key = '${c.id}:${c.penaltyPoints}';
+    if (!_shownPenalties.add(key)) continue;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.trending_down_rounded, color: AppColors.danger, size: 32),
+        title: const Text('You missed a day'),
+        content: Text(
+          '-${c.penaltyPoints} points, and your streak was reset. '
+          'Finish today\'s tasks to start earning again.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
+        ],
+      ),
+    );
+    break; // one dialog at a time
+  }
+}
 
 class ChallengeDashboardScreen extends ConsumerWidget {
   const ChallengeDashboardScreen({super.key});
@@ -18,11 +52,22 @@ class ChallengeDashboardScreen extends ConsumerWidget {
     final programsAsync = ref.watch(activeProgramsProvider);
     final profileAsync = ref.watch(profileProvider);
 
+    if (!_walkthroughQueued && !howItWorksSeen && programsAsync.hasValue) {
+      _walkthroughQueued = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) showHowItWorks(context);
+      });
+    }
+
+    ref.listen<AsyncValue<ActiveProgramsModel>>(activeProgramsProvider, (prev, next) {
+      final programs = next.valueOrNull;
+      if (programs != null) _showPenaltyNotice(context, programs);
+    });
+
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: programsAsync.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.orange)),
+        loading: () => const SlowLoadingHint(),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -115,8 +160,13 @@ class _HomeContent extends StatelessWidget {
           children: [
             Row(
               children: [
-                const BrandLogo(size: 34, variant: BrandLogoVariant.full),
+                const AppWordmark(size: 26),
                 const Spacer(),
+                IconButton(
+                  tooltip: 'How it works',
+                  onPressed: () => showHowItWorks(context),
+                  icon: const Icon(Icons.help_outline_rounded),
+                ),
                 IconButton(
                   onPressed: () => context.push(AppRoutes.settings),
                   icon: const Icon(Icons.settings_outlined),
@@ -205,6 +255,8 @@ class _HomeContent extends StatelessWidget {
               ).animate().fadeIn(delay: 100.ms),
             ],
             const SizedBox(height: 24),
+            const ActivityCalendarCard(),
+            const SizedBox(height: 24),
             Text(
               'Programs',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -215,7 +267,7 @@ class _HomeContent extends StatelessWidget {
             const SizedBox(height: 12),
             _PersonalProgramCard(
               challenge: personal,
-              onStart: () => context.go(AppRoutes.onboarding),
+              onStart: () => context.push(AppRoutes.onboarding),
               onOpen: personal == null
                   ? null
                   : () => context.push('/home/challenge/${personal.id}'),
@@ -276,6 +328,38 @@ class _TodayTaskStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (challenge.isScheduled) {
+      final d = challenge.startDate;
+      final when = d == null ? '' : ' on ${DateFormat('EEE, MMM d').format(d)}';
+      return SoftCard(
+        child: Row(
+          children: [
+            const GlossyIcon(icon: Icons.event_rounded, color: AppColors.orange, size: 40),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Starts$when',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Your ${challenge.tasks.length} tasks unlock on day one.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -300,6 +384,7 @@ class _TodayTaskStrip extends StatelessWidget {
                 title: task.title,
                 isCompleted: task.isCompleted,
                 isFoundation: task.type == 'foundation',
+                groupTask: challenge.isGroup,
                 onChanged: (_) =>
                     context.push('/home/challenge/${challenge.id}'),
               ),
@@ -413,13 +498,14 @@ class _PersonalProgramCard extends StatelessWidget {
               durationDays: c.durationDays,
               progressPercent: c.progressPercent,
               dayComplete: c.dayComplete,
+              startsInDays: c.daysUntilStart,
               onTap: onOpen,
             ),
             const SizedBox(height: 16),
             _DualProgramActions(
               accent: _accent,
               onOpen: onOpen,
-              onTasks: onTasks,
+              onTasks: c.isScheduled ? null : onTasks,
             ),
           ],
         ],
@@ -683,6 +769,7 @@ class _ActiveProgramBody extends StatelessWidget {
     required this.durationDays,
     required this.progressPercent,
     required this.dayComplete,
+    this.startsInDays = 0,
     this.onTap,
     this.memberCount,
   });
@@ -695,6 +782,7 @@ class _ActiveProgramBody extends StatelessWidget {
   final int durationDays;
   final double progressPercent;
   final bool dayComplete;
+  final int startsInDays;
   final VoidCallback? onTap;
   final int? memberCount;
 
@@ -728,8 +816,10 @@ class _ActiveProgramBody extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Day $currentDay / $durationDays'
-                  '${dayComplete ? ' · done' : ''}',
+                  startsInDays > 0
+                      ? 'Starts in $startsInDays day${startsInDays == 1 ? '' : 's'}'
+                      : 'Day $currentDay / $durationDays'
+                          '${dayComplete ? ' · done' : ''}',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
