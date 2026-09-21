@@ -45,6 +45,26 @@ class AppWordmark extends StatelessWidget {
   }
 }
 
+/// The app icon on its own (no name), for headers.
+class AppIconMark extends StatelessWidget {
+  const AppIconMark({super.key, this.size = 36});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.28),
+      child: Image.asset(
+        'assets/brand/app_icon.png',
+        width: size,
+        height: size,
+        filterQuality: FilterQuality.high,
+      ),
+    );
+  }
+}
+
 /// Small credit line: the app is made by ILM HUB (no logo).
 class MadeByIlmHub extends StatelessWidget {
   const MadeByIlmHub({super.key});

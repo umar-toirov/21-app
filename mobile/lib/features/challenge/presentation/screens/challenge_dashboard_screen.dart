@@ -160,7 +160,7 @@ class _HomeContent extends StatelessWidget {
           children: [
             Row(
               children: [
-                const AppWordmark(size: 26),
+                const AppIconMark(size: 38),
                 const Spacer(),
                 IconButton(
                   tooltip: 'How it works',

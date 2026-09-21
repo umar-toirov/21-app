@@ -65,7 +65,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const AppWordmark(size: 48)
+              const AppIconMark(size: 72)
                   .animate()
                   .fadeIn()
                   .scale(begin: const Offset(0.88, 0.88)),
