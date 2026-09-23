@@ -53,6 +53,7 @@ void main() {
         }
         expect(find.text('Habit Zone'), findsOneWidget);
         expect(find.text('Build discipline,\none day at a time.'), findsOneWidget);
+        expect(find.text('Daily tasks'), findsOneWidget);
       });
     }
   }
@@ -88,7 +89,6 @@ void main() {
     await settle(tester);
     expect(find.text('Sign up free'), findsOneWidget);
     expect(find.text('Log in'), findsOneWidget);
-    expect(find.textContaining('Discipline is choosing'), findsOneWidget);
-    expect(find.text('+5'), findsOneWidget);
+    expect(find.text('Groups and ranking'), findsOneWidget);
   });
 }

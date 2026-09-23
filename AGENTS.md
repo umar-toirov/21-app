@@ -22,7 +22,7 @@ Discipline-building Flutter + FastAPI app for students: challenges, HP, streaks,
 |-------|------|----------------|
 | **Flutter** (`mobile/`) | UI, navigation, Riverpod, go_router | App won’t open / layout bugs |
 | **Backend** (`backend/`) | FastAPI: challenges, HP, groups, profiles | Data after login fails; `/v1/health` down |
-| **Supabase** | **Auth** (email + Google JWT) **and** **Postgres** (app data) | Signup/login errors; empty/missing cloud data |
+| **Supabase** | **Auth** (email + password; Google login was removed) **and** **Postgres** (app data) | Signup/login errors; empty/missing cloud data |
 
 **Design / UI** → Flutter (+ optional backend). Does **not** need login or Android Studio.  
 **Login/signup** → Supabase Auth.  
@@ -124,7 +124,7 @@ No iOS Simulator on Windows.
 ## Auth flow
 
 1. **Signup:** Supabase `signUp` → `POST /profiles` → onboarding  
-2. **Login:** `signInWithPassword` or Google OAuth (PKCE web) → `GET /me`  
+2. **Login:** `signInWithPassword` (Google login removed) → `GET /me`  
 3. JWT verified with `SUPABASE_JWT_SECRET`  
 4. Web: path URL strategy + `/auth/callback`; add Redirect URLs in Supabase for each origin used  
 
@@ -206,7 +206,7 @@ Brand: primary orange `#F15A29`, teal success, gold achievements, blue accent on
 | User goal | Do this |
 |-----------|---------|
 | Edit design / see screens | `.\run-chrome.ps1` (backend optional) |
-| Test login / Google | Supabase + Flutter; check Redirect URLs |
+| Test login | Supabase + Flutter; check Redirect URLs |
 | Test challenges / groups | Backend + Flutter + auth; DB = Supabase or SQLite |
 | Wire / check cloud DB | `python -m tools.test_db`; see `docs/DEPLOY.md` |
 | Phone-shaped preview | `.\run-phone-preview.ps1` |
@@ -261,10 +261,10 @@ Brand: primary orange `#F15A29`, teal success, gold achievements, blue accent on
 
 ## Branding (app name **Habit Zone**)
 
-- **Name:** the app is called **Habit Zone** (`AppConfig.appName` in `core/config/env.dart`; Android label in `AndroidManifest.xml`; `web/index.html`; `web/manifest.json`). It was "21" before. The "21-day" idea remains the product concept and copy ("21-Day Challenge…"). Package id is still `com.ilmmode.app.ilm_mode` — **decide the permanent one before publishing** (e.g. `com.ilmhub.habitzone`). Store title suggestion: "Habit Zone – 21-Day Challenges"
+- **Name:** the app is called **Habit Zone** (`AppConfig.appName` in `core/config/env.dart`; Android label in `AndroidManifest.xml`; `web/index.html`; `web/manifest.json`). It was "21" before. The "21-day" idea remains the product concept and copy ("21-Day Challenge…"). Android package id is **`com.ilmhub.habitzone`** (permanent, chosen for Play). The Dart package is still named `ilm_mode` (imports); that is internal and harmless. Store title suggestion: "Habit Zone – 21-Day Challenges"
 - **Icon:** supplied by the user as `mobile/assets/brand/habitzone_icon.svg` (navy→blue rounded square, orange/gold and teal progress rings, white check). Regenerate every derived file with `python tools/generate_brand_assets.py` (from `mobile/`; needs Pillow + Chrome, which renders the SVG). It writes: Android adaptive icon layers (`drawable-*/ic_launcher_background|foreground|monochrome.png`, monochrome = Android 13 themed icon), legacy `mipmap-*/ic_launcher.png`, splash images, web icons/favicon/maskable icons, and `assets/brand/app_icon.png`, `app_glyph.png` (white check, for dark backgrounds), `app_glyph_light.png` (navy check, for light backgrounds), `app_icon_1024.png` (store icon)
 - **Native launch screen:** brand navy `#033D95` (`values*/colors.xml` → `splash_background`) with the glyph (`splash_icon.png` Android 12+, `splash_logo.png` older). The Flutter intro (`core/widgets/brand_intro.dart`, `kBrandNavy`) uses the same navy + glyph so the hand-off has no flash; then app name, tagline and "Made by ILM HUB". ~1.6 s, tap to skip, once per launch. It needs its own `Material` (it sits above the Navigator; text otherwise gets the debug yellow underline)
-- **ILM HUB** appears only as the text credit "Made by ILM HUB" (intro, landing, About). The old ILM emblem files in `assets/brand/` (`icon*.png`, `logo*.png`, `mountain*.png`, `emblem.png`) are no longer bundled or used and can be deleted. Only `google_logo.svg`, `app_icon.png`, `app_glyph.png` are bundled (`pubspec.yaml`)
+- **ILM HUB** appears as the text credit "Made by ILM HUB" (intro, landing, About) **and** as the emblem image (`assets/brand/emblem.png`, graduation cap + wings) in the Home header (`challenge_dashboard_screen.dart`, user's explicit request) — everywhere else stays text-only. The other old ILM files in `assets/brand/` (`icon*.png`, `logo*.png` except `emblem.png`, `mountain*.png`) are still unused and can be deleted. Bundled in `pubspec.yaml`: `app_icon.png`, `app_glyph.png`, `app_glyph_light.png`, `emblem.png`
 - Landing shows the app icon + name; login/signup/home use the `AppWordmark` text widget
 
 ## Preview harness (screenshots without login)
@@ -275,7 +275,9 @@ Brand: primary orange `#F15A29`, teal success, gold achievements, blue accent on
 
 - **Rule change:** groups now have **chat** (the user asked for it). Older docs saying "groups are not chat" are obsolete. Still no direct messages, no media, no reactions
 - **No foundation tasks in groups.** The admin defines "group tasks" (shared by everyone) at creation and can add/remove them any time (`POST/DELETE /groups/{id}/tasks`, `GET` to list; Group settings screen). They are stored on each member's group challenge as `TaskType.FOUNDATION` (no DB enum change) and shown as **"Group task"**; a member's own tasks are `PERSONAL` and shown as **"My task"** (`TaskTile(groupTask: true)`). `task_mode`: `shared` (everyone does the admin's tasks; needs ≥1) or `freedom` (members also choose their own; admin's group tasks optional; each joiner needs ≥1 own task unless the group has tasks). Old app builds may send `foundation_tasks`; `GroupCreate.group_tasks` accepts both names
-- **Join flow:** `GET /groups/preview/{code}` returns `group_tasks`, `leader_name`, `member_count`. The join screen shows the admin's tasks read-only, and only asks for own tasks in `freedom` groups. `JoinGroupScreen(initialCode:)` supports links
+- **Join flow:** `GET /groups/preview/{code}` returns `group_tasks`, `leader_name`, `member_count`. The join screen shows the admin's tasks read-only, and only asks for own tasks in `freedom` groups. `JoinGroupScreen(initialCode:)` supports links; `JoinGroupScreen(publicGroup:)` supports joining straight from Discover (see below), skipping the code step
+- **Names are unique** (case-insensitive) among **active** groups — `GroupService._check_name_available` (`ConflictError`, 409); enforced on create and rename (`PATCH /groups/{id}`). An ended group's name is freed up for reuse
+- **Public vs private groups:** `Group.is_public` (default `False` — existing/invite-only behavior unchanged). Set at creation (`CreateGroupScreen` → "Who can join?") or toggled later via `PATCH /groups/{id}` (`GroupUpdate.is_public`). Public groups are listed in **Discover** (`GET /groups/public` → `PublicGroupSummary`, `DiscoverGroupsScreen`, `AppRoutes.discoverGroups`) and joined directly by id with **no invite code** (`POST /groups/{id}/join` → `GroupService.join_public_group`, 403 if the group isn't public). Private groups never appear in Discover and reject that endpoint. Both join paths share `GroupService._join_resolved_group`
 - **Leave/end:** `POST /groups/{id}/leave` (members; the admin gets `LEADER_CANNOT_LEAVE`), `DELETE /groups/{id}` (admin ends the group, archives everyone's challenge). Cancelling a *group* challenge is not allowed (`USE_LEAVE_GROUP`)
 - **Chat:** table `group_messages` (new, created by `create_all`, no migration). `GET /groups/{id}/messages?after=<id>|before=<id>&limit`, `POST` (≤1000 chars, 15/min → 429), `DELETE /messages/{id}` (author or admin; soft delete). The app polls every 4 s while the Chat tab is open (`features/group_challenge/presentation/widgets/group_chat.dart`), sends optimistically, and can retry failed sends
 - **Rankings:** members ranked by group points (see *Points system*). `GET /leaderboard` (people; metrics `hp` Points, `longest_streak`, `challenges_completed`; the redundant Discipline metric is no longer offered in the UI), `GET /leaderboard/me` (your rank), `GET /leaderboard/groups?metric=total|average` (groups ranked by the sum/average of their members' non-negative group points). Shared UI: `core/widgets/ranking_widgets.dart` (`RankList`, `RankPodium`, `RankRow`, shows points for every place) used by `features/statistics/.../leaderboard_tab.dart` (People | Groups) and the group Ranking tab. **Privacy note:** every active group appears (name, size, points) in the groups leaderboard; add an opt-out if that becomes a concern
@@ -321,15 +323,35 @@ Brand: primary orange `#F15A29`, teal success, gold achievements, blue accent on
 - Remove `usesCleartextTraffic="true"` from `AndroidManifest.xml` for production (the API is HTTPS)
 - Get a **vector or ≥1024 px logo** (the emblem is ~220×280 px, so the store icon and splash are upscaled) and a real **dark-mode wordmark**
 - Play Store assets: 1024×500 feature graphic and screenshots; iOS icons/splash need a Mac
-- Add other dev ports to Supabase Redirect URLs if used; Android Google login needs `io.supabase.ilmmode://login-callback/`
+- Add other dev ports to Supabase Redirect URLs if used
 - Not yet visually verified: logged-in screens in dark mode, the intro animation frame by frame, the icon and splash on a real device
 - Full-app widget test is not possible offline (Supabase init + google_fonts downloads); screens are tested with provider overrides and plain `ThemeData` (see `challenge_flow_test.dart`)
-- **Day rollover uses the server's UTC date** (`date.today()` in `challenge_service.py` / `group_service.py`), so days advance at 05:00 Tashkent, and a user just after local midnight may see "tomorrow" as their start date. `profile.timezone` exists but is unused — fix by computing "today" in the user's (default `Asia/Tashkent`) timezone in one helper
-- Choose the permanent **package id** for **Habit Zone** (see *Branding*) — the app name and icon are done
+- Play release: follow `docs/PLAY_STORE.md` (upload key, privacy policy URL with real contact email, screenshots, report-message feature)
 - Set up a **keep-alive ping / always-on host** so cold starts stop hurting (see *Startup speed*)
 - Groups: optional opt-out from the public groups leaderboard; push/unread badges for chat (polling only for now); moderation beyond admin delete
+- Discover (public groups) has no search/filter/pagination yet — fine while few groups are public, revisit if that grows
+- No UI yet to toggle an existing group's visibility after creation (backend supports it via `PATCH /groups/{id}`, `GroupUpdate.is_public`) — add a switch to `group_settings_screen.dart` if wanted
 - Deploy: the new `group_messages` table is created automatically on first start of the API (create_all); push to redeploy Render and rebuild the APK so old builds do not talk to removed behaviour
 - Optional next: reminders (time + push), 66-day/habit-formation framework, per-template tips, editing or cancelling a scheduled challenge
 - Group leaderboard runs one query per member (N+1); fine for small groups, batch it if groups grow
 
 11. **Habit Zone rebrand**: app renamed from "21"; new icon from `habitzone_icon.svg` (adaptive + themed + legacy + web), navy launch screen and intro, landing shows icon + name; web served for VS Code Simple Browser with `mobile/tools/serve_web.py` (`flutter build web --release --dart-define-from-file=env.json` then `python tools/serve_web.py`; the `flutter run` dev server only works in the Chrome window it launches)
+
+12. **Unique group names + public/private groups + Discover**: names unique (case-insensitive) among active groups, checked on create and rename; new `Group.is_public` (default private, unchanged behavior); `CreateGroupScreen` gets a "Who can join?" picker; public groups list in a new **Discover** screen (`GET /groups/public`) and join with no invite code (`POST /groups/{id}/join`); new tests `test_group_names_are_unique_case_insensitive`, `test_renaming_a_group_checks_uniqueness`, `test_public_groups_are_discoverable_and_joinable_without_a_code`, `test_private_groups_cannot_be_joined_via_the_public_endpoint` (backend), `discover groups` group + 2 create-group tests (mobile)
+
+
+## Day cutoff, reminders, iOS (latest)
+
+- **Day closes at 23:59 UTC+5 (Tashkent).** `app_today()` in `backend/app/core/security.py` replaces every `date.today()` (challenge/group services, router). `sync_calendar_day` therefore rolls the day and applies missed-day penalties at 00:00 UTC+5. Never use `date.today()` in backend code. Test: `tests/test_app_day.py`
+- **Google login removed** (button, provider method, asset, Android deep link). Email + password only. `AuthCallbackScreen` remains for email-confirmation links
+- **Reminders:** `mobile/lib/core/services/reminder_service.dart` schedules three local daily notifications at 09:00, 20:00, 22:30 UTC+5 (`flutter_local_notifications`, `timezone`). `app.dart` re-syncs them whenever the profile's `notifications_enabled` changes (Settings switch). Not on web. Android: `POST_NOTIFICATIONS` + boot receivers + core-library desugaring in `build.gradle.kts`. iOS asks permission on first enable
+- **iOS prepared, not built** (needs a Mac / cloud Mac + Apple Developer account): display name Habit Zone, AppIcon set and launch image generated from the SVG by `generate_brand_assets.py`, navy launch screen. iOS bundle id is still `com.ilmmode.app.ilmMode` — set it to `com.ilmhub.habitzone` in Xcode before the first App Store upload. For iPhone without a Mac use the web build as a Safari "Add to Home Screen" app
+- Open: the reminder times are fixed; make them user-configurable if wanted
+
+## Play Store preparation
+
+- Package `com.ilmhub.habitzone`; release build is signed from `mobile/android/key.properties` (gitignored; create with `tools/create_upload_key.ps1`), minified + resource-shrunk (`proguard-rules.pro`), https-only (cleartext is allowed only in `src/debug`)
+- CI: `.github/workflows/build-aab.yml` builds the signed `.aab` (needs the `UPLOAD_*` secrets); `build-apk.yml` still builds a test APK
+- `docs/PLAY_STORE.md` = listing text, Data safety answers, release steps. `docs/privacy.html` = privacy policy (replace `CONTACT_EMAIL`, host it). Store graphics: `tools/generate_store_assets.py` → `mobile/store/`
+- Not verified locally: the release build (broken local NDK) — first run goes through GitHub Actions
+- Missing before production: a "Report message" action for group chat (Play UGC policy)

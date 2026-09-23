@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from app.core.security import app_today
 from typing import Annotated
 from uuid import UUID
 
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AppError
-from app.core.security import get_current_profile, get_current_user_id
+from app.core.security import get_current_profile
 from app.data.challenge_templates import CATEGORIES, TEMPLATES, TEMPLATES_BY_ID
 from app.db.session import get_db
 from app.models.profile import (
@@ -44,6 +45,8 @@ from app.schemas.schemas import (
     GroupSessionCreate,
     GroupTaskBody,
     GroupUpdate,
+    PublicGroupJoin,
+    PublicGroupSummary,
     HpEventResponse,
     LeaderboardEntry,
     OnboardingResponse,
@@ -245,7 +248,7 @@ async def my_activity(
     db: Annotated[AsyncSession, Depends(get_db)],
     month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
 ):
-    today = date.today()
+    today = app_today()
     year, mon = (int(x) for x in month.split("-")) if month else (today.year, today.month)
     if not 1 <= mon <= 12:
         raise AppError("VALIDATION", "Invalid month")
@@ -419,14 +422,14 @@ async def personal_statistics(
         completed_day_rows += day_complete_count
         elapsed = min(c.current_day, c.duration_days)
         total_elapsed_days += max(elapsed, 1)
-        missed += sum(1 for d in c.days if d.calendar_date < date.today() and not d.is_complete)
+        missed += sum(1 for d in c.days if d.calendar_date < app_today() and not d.is_complete)
 
     completion_rate = (
         round((completed_day_rows / total_elapsed_days) * 100, 1) if total_elapsed_days else 0.0
     )
 
     # Last 7 calendar days of completion across active challenges.
-    today = date.today()
+    today = app_today()
     daily = []
     for i in range(6, -1, -1):
         day = today - timedelta(days=i)
@@ -531,9 +534,9 @@ async def groups_leaderboard(
 
 @router.get("/statistics/me/weekly-report", response_model=WeeklyReportResponse)
 async def weekly_report(profile: Annotated[Profile, Depends(get_current_profile)]):
-    from datetime import date, timedelta
+    from datetime import timedelta
 
-    today = date.today()
+    today = app_today()
     week_start = today - timedelta(days=today.weekday())
     return WeeklyReportResponse(
         week_start=week_start,
@@ -608,7 +611,46 @@ async def create_group(
         starts_at=group.starts_at,
         status=group.status,
         task_mode=getattr(group, "task_mode", None) or "shared",
+        is_public=getattr(group, "is_public", False),
         member_count=1,
+    )
+
+
+@router.get("/groups/public", response_model=list[PublicGroupSummary])
+async def list_public_groups(
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Discover: active groups anyone can join without an invite code."""
+    service = GroupService(db)
+    return await service.list_public_groups(profile.id)
+
+
+@router.post("/groups/{group_id}/join", response_model=GroupResponse)
+async def join_public_group(
+    group_id: UUID,
+    profile: Annotated[Profile, Depends(get_current_profile)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    data: PublicGroupJoin | None = None,
+):
+    """Join a public group directly by id (no invite code)."""
+    service = GroupService(db)
+    personal_tasks = data.personal_tasks if data else []
+    group = await service.join_public_group(profile, group_id, personal_tasks=personal_tasks)
+    count = await db.execute(
+        select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group.id)
+    )
+    return GroupResponse(
+        id=group.id,
+        name=group.name,
+        invite_code=group.invite_code,
+        duration_days=group.duration_days,
+        max_missed_days=group.max_missed_days,
+        starts_at=group.starts_at,
+        status=group.status,
+        task_mode=getattr(group, "task_mode", None) or "shared",
+        is_public=getattr(group, "is_public", False),
+        member_count=count.scalar() or 1,
     )
 
 
@@ -819,7 +861,12 @@ async def update_group(
         group_id, profile.id, data.model_dump(exclude_unset=True)
     )
     await db.commit()
-    return {"id": group.id, "name": group.name, "max_missed_days": group.max_missed_days}
+    return {
+        "id": group.id,
+        "name": group.name,
+        "max_missed_days": group.max_missed_days,
+        "is_public": getattr(group, "is_public", False),
+    }
 
 
 @router.delete("/groups/{group_id}/members/{member_id}")

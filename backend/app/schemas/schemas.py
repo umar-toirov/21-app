@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field
 
 
 class ORMModel(BaseModel):
@@ -209,10 +209,18 @@ class GroupCreate(BaseModel):
     task_mode: Literal["shared", "freedom"] = "shared"
     # The creator's own tasks when members choose their own ("freedom").
     personal_tasks: list[str] = Field(default_factory=list, max_length=10)
+    # Public groups are listed in Discover for anyone to join without a code.
+    is_public: bool = False
 
 
 class GroupJoin(BaseModel):
     invite_code: str
+    personal_tasks: list[str] = Field(default_factory=list)
+
+
+class PublicGroupJoin(BaseModel):
+    """Body for joining a public group by id — no invite code needed."""
+
     personal_tasks: list[str] = Field(default_factory=list)
 
 
@@ -228,6 +236,21 @@ class GroupInvitePreview(BaseModel):
     member_count: int = 0
 
 
+class PublicGroupSummary(BaseModel):
+    """One row in the public groups directory (Discover)."""
+
+    id: UUID
+    name: str
+    duration_days: int
+    task_mode: str
+    group_tasks: list[str] = []
+    starts_at: date
+    max_missed_days: int
+    leader_name: str | None = None
+    member_count: int = 0
+    is_member: bool = False
+
+
 class ChallengeTaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
 
@@ -241,6 +264,7 @@ class GroupResponse(ORMModel):
     starts_at: date
     status: str
     task_mode: str = "shared"
+    is_public: bool = False
     member_count: int = 0
     today_completion_percent: float = 0
     current_day: int = 1
@@ -288,6 +312,7 @@ class GroupDashboardInfo(BaseModel):
     starts_at: date
     status: str
     task_mode: str = "shared"
+    is_public: bool = False
     member_count: int = 0
     is_leader: bool = False
     leader_id: UUID | None = None
@@ -318,9 +343,10 @@ class GroupSessionCreate(BaseModel):
 
 
 class GroupUpdate(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
     max_missed_days: int | None = Field(default=None, ge=1, le=7)
     penalty_rules: dict | None = None
+    is_public: bool | None = None
 
 
 class GroupTaskBody(BaseModel):

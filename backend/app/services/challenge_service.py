@@ -7,9 +7,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.config import settings
 from app.core.exceptions import AppError, ConflictError, ForbiddenError, NotFoundError
-from app.core.security import as_utc, utcnow
+from app.core.security import app_today, as_utc, utcnow
 from app.models.profile import (
     Badge,
     BadgeCode,
@@ -58,10 +57,12 @@ MAX_START_AHEAD_DAYS = 60
 QUOTES = [
     ("Discipline is choosing between what you want now and what you want most.", "Abraham Lincoln"),
     ("We are what we repeatedly do. Excellence, then, is not an act, but a habit.", "Aristotle"),
-    ("The pain of discipline is far less than the pain of regret.", "Unknown"),
-    ("Future you is watching.", "ILM Mode"),
-    ("Small daily improvements lead to stunning results.", "Unknown"),
-    ("Your mission awaits.", "ILM Mode"),
+    ("Discipline weighs ounces while regret weighs tons.", "Jim Rohn"),
+    ("Habits are the compound interest of self-improvement.", "James Clear"),
+    ("Motivation is what gets you started. Habit is what keeps you going.", "Jim Ryun"),
+    ("We first make our habits, and then our habits make us.", "John Dryden"),
+    ("Success is the sum of small efforts, repeated day in and day out.", "Robert Collier"),
+    ("It does not matter how slowly you go as long as you do not stop.", "Confucius"),
 ]
 
 
@@ -157,7 +158,7 @@ class ChallengeService:
         if len(tasks) > MAX_PERSONAL_TASKS:
             raise AppError("VALIDATION", f"Choose at most {MAX_PERSONAL_TASKS} personal tasks")
 
-        today = date.today()
+        today = app_today()
         start = start_date or today
         if start < today:
             start = today  # a client a day behind/ahead of the server clock still starts today
@@ -253,7 +254,7 @@ class ChallengeService:
         """Everything the user did (and missed) in a calendar month, for the home calendar."""
         first = date(year, month, 1)
         last = (date(year + (month == 12), (month % 12) + 1, 1)) - timedelta(days=1)
-        today = date.today()
+        today = app_today()
 
         done_rows = (
             await self.db.execute(
@@ -540,7 +541,7 @@ class ChallengeService:
         """Whole days until a personal challenge begins (0 once it has started)."""
         if challenge.type != ChallengeType.INDIVIDUAL or not challenge.start_date:
             return 0
-        return max(0, (challenge.start_date - date.today()).days)
+        return max(0, (challenge.start_date - app_today()).days)
 
     async def sync_calendar_day(self, profile: Profile, challenge: Challenge) -> Challenge:
         """Advance challenge days only when the calendar date moves past midnight."""
@@ -549,7 +550,7 @@ class ChallengeService:
         if not challenge.start_date:
             return challenge
 
-        today = date.today()
+        today = app_today()
         expected_day = (today - challenge.start_date).days + 1
         expected_day = max(1, min(expected_day, challenge.duration_days))
 
@@ -713,7 +714,7 @@ class ChallengeService:
         )
         rank = (rank_result.scalar() or 0) + 1
 
-        today = date.today()
+        today = app_today()
         days_payload = []
         for d in sorted(challenge.days, key=lambda x: x.day_number):
             is_future = d.calendar_date > today
@@ -764,7 +765,7 @@ class ChallengeService:
         if not day:
             raise NotFoundError("Challenge day")
 
-        today = date.today()
+        today = app_today()
         is_locked = day.calendar_date > today or day_number > challenge.current_day
         if challenge.status == ChallengeStatus.COMPLETED:
             is_locked = False

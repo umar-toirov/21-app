@@ -17,6 +17,7 @@ import '../../features/challenge/presentation/screens/challenge_setup_screen.dar
 import '../../features/challenge/presentation/screens/challenge_complete_screen.dart';
 import '../../features/challenge/presentation/screens/recovery_screen.dart';
 import '../../features/group_challenge/presentation/screens/create_group_screen.dart';
+import '../../features/group_challenge/presentation/screens/discover_groups_screen.dart';
 import '../../features/group_challenge/presentation/screens/group_home_screen.dart';
 import '../../features/group_challenge/presentation/screens/group_list_screen.dart';
 import '../../features/group_challenge/presentation/screens/group_member_profile_screen.dart';
@@ -47,6 +48,8 @@ class AppRoutes {
   static const challengeDetail = '/home/challenge/:id';
   static const createGroup = '/groups/create';
   static const joinGroup = '/groups/join';
+  static const discoverGroups = '/groups/discover';
+  static const joinPublicGroup = '/groups/join-public';
   static const groupDashboard = '/groups/:id/dashboard';
   static const groupMember = '/groups/:id/members/:memberId';
   static const groupSettings = '/groups/:id/settings';
@@ -165,6 +168,11 @@ GoRouter createRouter({Listenable? refreshListenable}) {
       ),
       GoRoute(path: AppRoutes.createGroup, builder: (_, __) => const CreateGroupScreen()),
       GoRoute(path: AppRoutes.joinGroup, builder: (_, __) => const JoinGroupScreen()),
+      GoRoute(path: AppRoutes.discoverGroups, builder: (_, __) => const DiscoverGroupsScreen()),
+      GoRoute(
+        path: AppRoutes.joinPublicGroup,
+        builder: (_, state) => JoinGroupScreen(publicGroup: state.extra as PublicGroupModel),
+      ),
       GoRoute(
         path: AppRoutes.groupDashboard,
         builder: (_, state) => GroupHomeScreen(groupId: state.pathParameters['id']!),

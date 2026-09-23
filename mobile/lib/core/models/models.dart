@@ -324,6 +324,47 @@ class GroupModel {
       );
 }
 
+/// One row in the public groups directory (Discover) — a group anyone can
+/// join without an invite code.
+class PublicGroupModel {
+  final String id;
+  final String name;
+  final int durationDays;
+  final String taskMode;
+  final List<String> groupTasks;
+  final String startsAt;
+  final int maxMissedDays;
+  final String? leaderName;
+  final int memberCount;
+  final bool isMember;
+
+  PublicGroupModel({
+    required this.id,
+    required this.name,
+    required this.durationDays,
+    this.taskMode = 'shared',
+    this.groupTasks = const [],
+    required this.startsAt,
+    required this.maxMissedDays,
+    this.leaderName,
+    this.memberCount = 0,
+    this.isMember = false,
+  });
+
+  factory PublicGroupModel.fromJson(Map<String, dynamic> json) => PublicGroupModel(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        durationDays: json['duration_days'] as int,
+        taskMode: json['task_mode'] as String? ?? 'shared',
+        groupTasks: List<String>.from((json['group_tasks'] ?? const []) as List),
+        startsAt: json['starts_at'] as String,
+        maxMissedDays: json['max_missed_days'] as int? ?? 3,
+        leaderName: json['leader_name'] as String?,
+        memberCount: json['member_count'] as int? ?? 0,
+        isMember: json['is_member'] as bool? ?? false,
+      );
+}
+
 class BadgeModel {
   final int id;
   final String code;

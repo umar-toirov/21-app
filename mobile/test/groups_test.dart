@@ -7,11 +7,13 @@ import 'package:go_router/go_router.dart';
 
 import 'package:ilm_mode/core/models/models.dart';
 import 'package:ilm_mode/core/providers/providers.dart';
+import 'package:ilm_mode/core/router/app_router.dart';
 import 'package:ilm_mode/core/services/sound_service.dart';
 import 'package:ilm_mode/core/theme/app_theme.dart';
 import 'package:ilm_mode/core/widgets/ranking_widgets.dart';
 import 'package:ilm_mode/features/challenge/presentation/widgets/activity_calendar.dart';
 import 'package:ilm_mode/features/group_challenge/presentation/screens/create_group_screen.dart';
+import 'package:ilm_mode/features/group_challenge/presentation/screens/discover_groups_screen.dart';
 import 'package:ilm_mode/features/group_challenge/presentation/screens/join_group_screen.dart';
 import 'package:ilm_mode/features/group_challenge/presentation/widgets/group_chat.dart';
 import 'package:ilm_mode/features/statistics/presentation/widgets/leaderboard_tab.dart';
@@ -31,6 +33,9 @@ class _FakeApi implements ApiRepository {
   };
   String? joinedCode;
   List<String>? joinedTasks;
+  List<PublicGroupModel> publicGroups = [];
+  String? joinedPublicGroupId;
+  List<String>? joinedPublicGroupTasks;
 
   final sent = <String>[];
   final deleted = <String>[];
@@ -51,6 +56,16 @@ class _FakeApi implements ApiRepository {
   Future<GroupModel> joinGroup(String inviteCode, {List<String>? personalTasks}) async {
     joinedCode = inviteCode;
     joinedTasks = personalTasks;
+    return _group;
+  }
+
+  @override
+  Future<List<PublicGroupModel>> getPublicGroups() async => publicGroups;
+
+  @override
+  Future<GroupModel> joinPublicGroup(String groupId, {List<String>? personalTasks}) async {
+    joinedPublicGroupId = groupId;
+    joinedPublicGroupTasks = personalTasks;
     return _group;
   }
 
@@ -202,6 +217,39 @@ void main() {
       expect(sent['personal_tasks'], isEmpty);
       expect(sent.containsKey('foundation_tasks'), isFalse);
       expect(find.text('GROUP DASHBOARD'), findsOneWidget);
+    });
+
+    testWidgets('is private by default; Public sends is_public true', (tester) async {
+      _phone(tester);
+      final api = _FakeApi();
+      await tester.pumpWidget(app(api));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Morning Squad');
+      await _scrollTo(tester, find.text('Read 20 pages'));
+      await tester.tap(find.text('Read 20 pages'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create group'));
+      await tester.pumpAndSettle();
+      expect(api.createdGroup!['is_public'], isFalse);
+    });
+
+    testWidgets('tapping Public sends is_public true', (tester) async {
+      _phone(tester);
+      final api = _FakeApi();
+      await tester.pumpWidget(app(api));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Open Squad');
+      await _scrollTo(tester, find.text('Public'));
+      await tester.tap(find.text('Public'));
+      await tester.pumpAndSettle();
+      await _scrollTo(tester, find.text('Read 20 pages'));
+      await tester.tap(find.text('Read 20 pages'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create group'));
+      await tester.pumpAndSettle();
+      expect(api.createdGroup!['is_public'], isTrue);
     });
 
     testWidgets('members-choose mode also asks for the admin\'s own tasks', (tester) async {
@@ -521,10 +569,82 @@ void main() {
       expect(find.textContaining('You finished everything'), findsOneWidget);
     });
   });
+
+  // ------------------------------------------------------------------ discover
+  group('discover groups', () {
+    Widget app(_FakeApi api) => ProviderScope(
+          overrides: [apiRepositoryProvider.overrideWithValue(api)],
+          child: _discoverApp(),
+        );
+
+    testWidgets('lists public groups and lets you join one', (tester) async {
+      _phone(tester);
+      final api = _FakeApi()
+        ..publicGroups = [
+          PublicGroupModel(
+            id: 'pg1',
+            name: 'Open Study',
+            durationDays: 21,
+            taskMode: 'shared',
+            groupTasks: const ['Read 20 pages'],
+            startsAt: '2026-10-01',
+            maxMissedDays: 3,
+            leaderName: 'Ana',
+            memberCount: 5,
+          ),
+        ];
+      await tester.pumpWidget(app(api));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Open Study'), findsOneWidget);
+      expect(find.textContaining('by Ana'), findsOneWidget);
+      expect(find.textContaining('5 members'), findsOneWidget);
+
+      await tester.tap(find.text('Join'));
+      await tester.pumpAndSettle();
+
+      // No invite code field: goes straight to the confirm + tasks step.
+      expect(find.text('Open Study'), findsWidgets);
+      await tester.tap(find.text('Join Open Study'));
+      await tester.pumpAndSettle();
+
+      expect(api.joinedPublicGroupId, 'pg1');
+      expect(find.text('GROUP DASHBOARD'), findsOneWidget);
+    });
+
+    testWidgets('a joined group shows Open instead of Join', (tester) async {
+      _phone(tester);
+      final api = _FakeApi()
+        ..publicGroups = [
+          PublicGroupModel(
+            id: 'pg2',
+            name: 'Already In',
+            durationDays: 21,
+            startsAt: '2026-10-01',
+            maxMissedDays: 3,
+            memberCount: 2,
+            isMember: true,
+          ),
+        ];
+      await tester.pumpWidget(app(api));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Open'), findsOneWidget);
+      expect(find.text('Join'), findsNothing);
+    });
+
+    testWidgets('empty state when there are no public groups', (tester) async {
+      _phone(tester);
+      await tester.pumpWidget(app(_FakeApi()));
+      await tester.pumpAndSettle();
+      expect(find.text('No public groups yet'), findsOneWidget);
+    });
+  });
 }
 
 Widget _createApp(bool dark) => _routerApp(const CreateGroupScreen(), dark);
 Widget _joinApp() => _routerApp(const JoinGroupScreen(), false);
+Widget _discoverApp() => _routerApp(const DiscoverGroupsScreen(), false);
 
 /// The screen is pushed on top of a base route so `pushReplacement` behaves as in the app.
 Widget _routerApp(Widget screen, bool dark) {
@@ -537,6 +657,10 @@ Widget _routerApp(Widget screen, bool dark) {
       GoRoute(
         path: '/groups/:id/dashboard',
         builder: (_, __) => const Scaffold(body: Text('GROUP DASHBOARD')),
+      ),
+      GoRoute(
+        path: AppRoutes.joinPublicGroup,
+        builder: (_, state) => JoinGroupScreen(publicGroup: state.extra as PublicGroupModel),
       ),
     ],
   );

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Any
 from uuid import UUID
 import time
@@ -177,6 +177,15 @@ async def verify_internal_job(
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# The app's day runs on Tashkent time (UTC+5, no DST): a day closes at 23:59 there.
+APP_TZ = timezone(timedelta(hours=5))
+
+
+def app_today() -> date:
+    """Today's calendar date in UTC+5. Use instead of date.today() (server-local/UTC)."""
+    return datetime.now(APP_TZ).date()
 
 
 def as_utc(dt: datetime | None) -> datetime | None:

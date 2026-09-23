@@ -160,7 +160,12 @@ class _HomeContent extends StatelessWidget {
           children: [
             Row(
               children: [
-                const AppIconMark(size: 38),
+                // The Home header shows the ILM HUB emblem (not the app icon).
+                Image.asset(
+                  'assets/brand/emblem.png',
+                  height: 38,
+                  filterQuality: FilterQuality.high,
+                ),
                 const Spacer(),
                 IconButton(
                   tooltip: 'How it works',

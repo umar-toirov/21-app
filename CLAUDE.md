@@ -18,10 +18,11 @@ Flutter (`mobile/`) + FastAPI (`backend/`) discipline app. Supabase = **Auth + P
 8. **Group points are separate from personal HP** — group rank uses only the member’s group-challenge points (`GroupService._group_points`), never `profile.hp`.
 9. **Challenge frameworks are static data** in `backend/app/data/challenge_templates.py`; new challenges go through `POST /v1/challenges`; personal challenges can be **scheduled** (future `start_date`) and can't be ticked before it starts. See AGENTS.md → *Challenge frameworks, start date, skip*.
 10. **Points:** +5 per task, +10 perfect-day bonus, −15 per missed day (backend constants in `challenge_service.py`); new users start at 0. See AGENTS.md → *Points system*.
-11. **The app is called Habit Zone** and uses the supplied icon (`mobile/assets/brand/habitzone_icon.svg`, regenerate assets with `tools/generate_brand_assets.py`). Do not show the ILM HUB logo in the app — only the text credit "Made by ILM HUB". See AGENTS.md → *Branding*.
+11. **The app is called Habit Zone** and uses the supplied icon (`mobile/assets/brand/habitzone_icon.svg`, regenerate assets with `tools/generate_brand_assets.py`) everywhere except the Home header, which shows the ILM HUB emblem (`assets/brand/emblem.png`, user's explicit request). Elsewhere ILM HUB appears only as the text credit "Made by ILM HUB". See AGENTS.md → *Branding*.
 12. **Startup must never block on the API** — profile/programs providers are cache-first `StreamProvider`s. See *Startup speed*.
 13. **API schemas are the contract:** a field not in the response model is silently dropped (see *Groups v2 → Lesson*). Test through the schema, not just the service.
 14. **Dark mode is real** — use `AppColors.*` getters (surface/text/border/…Soft), never hard-coded light colors, and don’t put theme-dependent colors in `const` widgets. See AGENTS.md → *Theme & dark mode*.
+15. **Days use UTC+5** — call `app_today()` (`core/security.py`), never `date.today()`. Google login is removed; email only. See AGENTS.md → *Day cutoff, reminders, iOS*.
 
 ## Default local stack (this machine)
 
@@ -65,7 +66,7 @@ cd mobile
 
 | Symptom | Likely cause |
 |---------|----------------|
-| Login fails, UI fine | Supabase Auth / email confirm / Google redirect URL |
+| Login fails, UI fine | Supabase Auth / email confirm |
 | Login OK, no data / 500 | Backend down, wrong `API_BASE_URL`, or DB/`as_utc` issues |
 | Blank Chrome at `:8090` | Use `run-chrome.ps1`, not the proxy |
 | Create group “date” errors | Ensure `datetime.date` imported in `group_service.py` |

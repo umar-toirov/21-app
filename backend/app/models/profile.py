@@ -139,6 +139,9 @@ class Group(Base):
     penalty_rules: Mapped[dict] = mapped_column(JSON, default=dict)
     # "shared" = foundation only for all; "freedom" = foundation + personal tasks
     task_mode: Mapped[str] = mapped_column(String(16), default="shared")
+    # Public groups are listed for anyone to discover and join without an invite
+    # code; private groups (the old default) are invite-only.
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(32), default="active")
     starts_at: Mapped[date] = mapped_column(Date, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

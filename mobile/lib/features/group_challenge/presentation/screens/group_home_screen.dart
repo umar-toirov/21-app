@@ -472,6 +472,10 @@ class _TodayTab extends ConsumerWidget {
           _MyDayCard(me: me, program: program, onOpenTasks: onOpenTasks),
           const SizedBox(height: 20),
           _DoneToday(members: members, doneCount: doneCount, onTap: onTapMember),
+          if (isLeader) ...[
+            const SizedBox(height: 22),
+            _LeaderDayRosterSectionHost(groupId: groupId, onTapMember: onTapMember),
+          ],
           if (announcements.isNotEmpty || isLeader) ...[
             const SizedBox(height: 22),
             Row(
@@ -508,10 +512,6 @@ class _TodayTab extends ConsumerWidget {
           if (feed.isNotEmpty) ...[
             const SizedBox(height: 22),
             GroupActivityFeed(feed: feed.take(8).toList()),
-          ],
-          if (isLeader) ...[
-            const SizedBox(height: 22),
-            _LeaderDayRosterSectionHost(groupId: groupId, onTapMember: onTapMember),
           ],
         ],
       ),

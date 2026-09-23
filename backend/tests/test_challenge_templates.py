@@ -1,7 +1,8 @@
 """Challenge frameworks and start-date scheduling."""
 
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
+from app.core.security import app_today
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -63,7 +64,7 @@ async def test_starts_today_by_default(session):
     c = await service.create_personal_challenge(
         profile, name="Read", goal_slug="reading", duration_days=21, personal_tasks=TASKS
     )
-    assert c.start_date == date.today()
+    assert c.start_date == app_today()
     assert c.status == ChallengeStatus.ACTIVE
     assert profile.onboarding_step == 6
 
@@ -78,7 +79,7 @@ async def test_starts_today_by_default(session):
 async def test_future_start_is_scheduled_and_locked(session):
     profile = await _profile(session)
     service = ChallengeService(session)
-    start = date.today() + timedelta(days=3)
+    start = app_today() + timedelta(days=3)
     c = await service.create_personal_challenge(
         profile, name="Later", goal_slug="other", duration_days=21,
         personal_tasks=TASKS, start_date=start,
@@ -118,7 +119,7 @@ async def test_validation_rules(session):
     with pytest.raises(AppError):  # too far ahead
         await service.create_personal_challenge(
             profile, name=None, goal_slug="other", duration_days=21, personal_tasks=TASKS,
-            start_date=date.today() + timedelta(days=MAX_START_AHEAD_DAYS + 1),
+            start_date=app_today() + timedelta(days=MAX_START_AHEAD_DAYS + 1),
         )
     with pytest.raises(AppError):  # duration out of range
         await service.create_personal_challenge(
@@ -128,9 +129,9 @@ async def test_validation_rules(session):
     # A past start date is treated as today; only one personal challenge at a time.
     c = await service.create_personal_challenge(
         profile, name=None, goal_slug="other", duration_days=21, personal_tasks=TASKS,
-        start_date=date.today() - timedelta(days=1),
+        start_date=app_today() - timedelta(days=1),
     )
-    assert c.start_date == date.today()
+    assert c.start_date == app_today()
     with pytest.raises(ConflictError):
         await service.create_personal_challenge(
             profile, name=None, goal_slug="other", duration_days=21, personal_tasks=TASKS,

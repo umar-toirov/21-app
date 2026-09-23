@@ -1,4 +1,4 @@
-package com.ilmmode.app.ilm_mode
+package com.ilmhub.habitzone
 
 import io.flutter.embedding.android.FlutterActivity
 

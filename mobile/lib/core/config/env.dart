@@ -31,6 +31,5 @@ class AppConfig {
   );
 
   /// Mobile deep link for Supabase OAuth return.
-  static const oauthDeepLink = 'io.supabase.ilmmode://login-callback/';
   static const authCallbackPath = '/auth/callback';
 }

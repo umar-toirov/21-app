@@ -26,6 +26,8 @@ dependencies:
   qr_flutter: ^4.1.0
   url_launcher: ^6.3.2
   audioplayers: ^6.8.1
+  flutter_local_notifications: ^22.3.1
+  timezone: ^0.11.1
 
 dev_dependencies:
   flutter_test:
@@ -36,8 +38,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/i18n/
-    - assets/brand/google_logo.svg
     - assets/brand/app_icon.png
     - assets/brand/app_glyph.png
     - assets/brand/app_glyph_light.png
+    - assets/brand/emblem.png
     - assets/sounds/

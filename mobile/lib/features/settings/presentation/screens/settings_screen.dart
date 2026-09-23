@@ -7,6 +7,7 @@ import '../../../../app.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/services/reminder_service.dart';
 import '../../../../core/widgets/how_it_works.dart';
 import '../../../../core/services/sound_service.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -81,10 +82,26 @@ class SettingsScreen extends ConsumerWidget {
                     value: profile.notificationsEnabled,
                     onChanged: (v) async {
                       HapticFeedback.selectionClick();
+                      // Sync the device's reminders directly (don't just wait on
+                      // app.dart's listener) so we can tell the user if the OS
+                      // denied notification permission — otherwise the switch
+                      // turns on but nothing is ever scheduled, silently.
+                      final ok = await ReminderService.instance.sync(enabled: v);
                       await ref
                           .read(apiRepositoryProvider)
                           .updateProfile({'notifications_enabled': v});
                       ref.invalidate(profileProvider);
+                      if (v && !ok && context.mounted) {
+                        ScaffoldMessenger.of(context)
+                          ..hideCurrentSnackBar()
+                          ..showSnackBar(const SnackBar(
+                            content: Text(
+                              "Couldn't turn on reminders. Check notification "
+                              'permission for this app in your phone settings.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                      }
                     },
                   ),
                   ),

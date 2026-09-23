@@ -1,7 +1,8 @@
 """Points: every task earns points, a perfect day adds a bonus, a missed day costs points."""
 
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
+from app.core.security import app_today
 
 import pytest
 from sqlalchemy import select
@@ -76,7 +77,7 @@ async def test_missed_days_remove_points_and_are_reported(session):
     service, profile, challenge = await _start(session, hp=100)
 
     # Pretend the challenge began two days ago and nothing was done.
-    challenge.start_date = date.today() - timedelta(days=2)
+    challenge.start_date = app_today() - timedelta(days=2)
     profile.current_streak = 4
     await session.flush()
 
@@ -95,7 +96,7 @@ async def test_missed_days_remove_points_and_are_reported(session):
 
 async def test_points_never_go_below_zero(session):
     service, profile, challenge = await _start(session, hp=10)
-    challenge.start_date = date.today() - timedelta(days=1)
+    challenge.start_date = app_today() - timedelta(days=1)
     await session.flush()
     await service.sync_calendar_day(profile, challenge)
     assert profile.hp == 0

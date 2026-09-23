@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/env.dart';
+import 'core/providers/providers.dart';
 import 'core/router/app_router.dart';
+import 'core/services/reminder_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/brand_intro.dart';
 
@@ -75,6 +77,14 @@ class _IlmModeAppState extends ConsumerState<IlmModeApp>
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final router = ref.watch(routerProvider);
+
+    // Keep the daily reminders in step with the profile's Notifications switch.
+    ref.listen(profileProvider, (_, next) {
+      final profile = next.valueOrNull;
+      if (profile != null) {
+        ReminderService.instance.sync(enabled: profile.notificationsEnabled);
+      }
+    });
 
     final platformDark =
         WidgetsBinding.instance.platformDispatcher.platformBrightness ==

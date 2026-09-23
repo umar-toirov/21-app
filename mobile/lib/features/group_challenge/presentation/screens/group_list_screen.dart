@@ -28,6 +28,11 @@ class GroupListScreen extends ConsumerWidget {
                   Text('Groups', style: Theme.of(context).textTheme.headlineSmall),
                   const Spacer(),
                   IconButton(
+                    tooltip: 'Discover public groups',
+                    icon: const Icon(Icons.public_rounded, color: AppColors.teal, size: 26),
+                    onPressed: () => context.push(AppRoutes.discoverGroups),
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.add_circle_rounded, color: AppColors.orange, size: 30),
                     onPressed: () => context.push(AppRoutes.createGroup),
                   ),
@@ -49,7 +54,13 @@ class GroupListScreen extends ConsumerWidget {
                       action: Column(
                         children: [
                           PrimaryButton(
-                            label: 'Join Group',
+                            label: 'Discover Public Groups',
+                            onPressed: () => context.push(AppRoutes.discoverGroups),
+                          ),
+                          const SizedBox(height: 12),
+                          PrimaryButton(
+                            label: 'Join with Invite Code',
+                            outlined: true,
                             onPressed: () => context.push(AppRoutes.joinGroup),
                           ),
                           const SizedBox(height: 12),
@@ -195,7 +206,8 @@ class _GroupsIntroCardState extends State<_GroupsIntroCard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Join with an invite code or create your own. The admin sets the tasks '
+                  'Discover a public group, join with an invite code, or create your own. '
+                  'The admin sets the tasks '
                   '(or lets members choose theirs). Everyone earns points, the group has '
                   'a ranking, and you can chat to keep each other going.',
                   style: TextStyle(fontSize: 13.5, height: 1.4, color: AppColors.textSecondary),

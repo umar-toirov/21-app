@@ -15,7 +15,7 @@ import 'core/services/sound_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Path URLs (not /#/...) so Google OAuth can return to /auth/callback.
+  // Path URLs (not /#/...) so email links can return to /auth/callback.
   if (kIsWeb) {
     usePathUrlStrategy();
   }

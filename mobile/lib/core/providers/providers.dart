@@ -1,10 +1,8 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../cache/app_cache.dart';
-import '../config/env.dart';
 import '../models/models.dart';
 import '../network/dio_client.dart';
 
@@ -42,23 +40,6 @@ class ApiRepository {
     await _supabase.auth.signInWithPassword(email: email, password: password);
   }
 
-  /// Starts Google OAuth via Supabase. On web this redirects the browser.
-  Future<bool> signInWithGoogle() async {
-    final redirectTo = kIsWeb
-        ? '${Uri.base.origin}${AppConfig.authCallbackPath}'
-        : AppConfig.oauthDeepLink;
-    return _supabase.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: redirectTo,
-      authScreenLaunchMode:
-          kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
-      queryParams: const {
-        'access_type': 'offline',
-        'prompt': 'select_account',
-      },
-    );
-  }
-
   Future<void> signOut() async {
     await AppCache.clear();
     await _supabase.auth.signOut();
@@ -77,7 +58,12 @@ class ApiRepository {
 
   Future<ProfileModel> updateProfile(Map<String, dynamic> data) async {
     final res = await _dio.patch('/me', data: data);
-    return ProfileModel.fromJson(res.data as Map<String, dynamic>);
+    final json = res.data as Map<String, dynamic>;
+    // Without this, the cache-first profileProvider re-emits the stale
+    // cached value the moment it's invalidated, flashing the old setting
+    // back (and, for notifications, briefly re-syncing reminders against it).
+    AppCache.saveProfile(json);
+    return ProfileModel.fromJson(json);
   }
 
   Future<Map<String, dynamic>> getOnboarding() async {
@@ -280,6 +266,22 @@ class ApiRepository {
     return GroupModel.fromJson(res.data as Map<String, dynamic>);
   }
 
+  /// Discover: active groups anyone can join without an invite code.
+  Future<List<PublicGroupModel>> getPublicGroups() async {
+    final res = await _dio.get('/groups/public');
+    return (res.data as List).map((e) => PublicGroupModel.fromJson(e)).toList();
+  }
+
+  Future<GroupModel> joinPublicGroup(
+    String groupId, {
+    List<String>? personalTasks,
+  }) async {
+    final res = await _dio.post('/groups/$groupId/join', data: {
+      if (personalTasks != null) 'personal_tasks': personalTasks,
+    });
+    return GroupModel.fromJson(res.data as Map<String, dynamic>);
+  }
+
   Future<Map<String, dynamic>> getGroupDashboard(String groupId) async {
     final res = await _dio.get('/groups/$groupId/dashboard');
     return res.data as Map<String, dynamic>;
@@ -423,6 +425,10 @@ final leaderboardProvider =
 
 final groupsProvider = FutureProvider<List<GroupModel>>((ref) async {
   return ref.watch(apiRepositoryProvider).getGroups();
+});
+
+final publicGroupsProvider = FutureProvider<List<PublicGroupModel>>((ref) async {
+  return ref.watch(apiRepositoryProvider).getPublicGroups();
 });
 
 final badgesProvider = FutureProvider<List<BadgeModel>>((ref) async {

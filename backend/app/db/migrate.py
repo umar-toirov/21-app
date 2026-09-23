@@ -40,3 +40,5 @@ def run_sqlite_migrations(conn: Connection) -> None:
 
     if _column_exists(conn, "groups", "name"):
         _add_column(conn, "groups", "task_mode", "VARCHAR(16) DEFAULT 'shared'")
+        bool_default = "BOOLEAN DEFAULT 0" if dialect == "sqlite" else "BOOLEAN DEFAULT FALSE"
+        _add_column(conn, "groups", "is_public", bool_default)

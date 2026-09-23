@@ -2,12 +2,12 @@ from datetime import date, timedelta
 from statistics import mean
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AppError, ConflictError, ForbiddenError, NotFoundError
-from app.core.security import as_utc, utcnow
+from app.core.security import app_today, as_utc, utcnow
 from app.models.profile import (
     Announcement,
     Challenge,
@@ -125,7 +125,7 @@ class GroupService:
             duration_days=group.duration_days,
             status=ChallengeStatus.ACTIVE,
             start_date=group.starts_at,
-            current_day=max(1, (date.today() - group.starts_at).days + 1),
+            current_day=max(1, (app_today() - group.starts_at).days + 1),
             group_id=group.id,
         )
         self.db.add(challenge)
@@ -165,7 +165,20 @@ class GroupService:
         await self.db.flush()
         return challenge
 
+    async def _check_name_available(self, name: str, exclude_group_id: UUID | None = None) -> None:
+        """Group names are unique (case-insensitive) among active groups. An
+        ended group's name is freed up for reuse."""
+        query = select(Group).where(
+            func.lower(Group.name) == name.strip().lower(), Group.status == "active"
+        )
+        if exclude_group_id is not None:
+            query = query.where(Group.id != exclude_group_id)
+        existing = (await self.db.execute(query)).scalar_one_or_none()
+        if existing:
+            raise ConflictError("That group name is already taken. Try another one.")
+
     async def create_group(self, leader: Profile, data: dict) -> Group:
+        await self._check_name_available(data["name"])
         await self._archive_active_group_challenges(leader.id)
         invite_code = generate_invite_code()
         while True:
@@ -195,6 +208,7 @@ class GroupService:
             max_missed_days=data.get("max_missed_days", 3),
             penalty_rules=data.get("penalty_rules") or {},
             task_mode=task_mode,
+            is_public=bool(data.get("is_public", False)),
             starts_at=data["starts_at"],
         )
         self.db.add(group)
@@ -261,6 +275,29 @@ class GroupService:
         group = result.scalar_one_or_none()
         if not group:
             raise NotFoundError("Group")
+        return await self._join_resolved_group(user, group, personal_tasks)
+
+    async def join_public_group(
+        self,
+        user: Profile,
+        group_id: UUID,
+        personal_tasks: list[str] | None = None,
+    ) -> Group:
+        """Join a public group directly by id — no invite code needed."""
+        result = await self.db.execute(select(Group).where(Group.id == group_id))
+        group = result.scalar_one_or_none()
+        if not group:
+            raise NotFoundError("Group")
+        if not getattr(group, "is_public", False):
+            raise ForbiddenError("This group is invite-only. Ask the admin for an invite code.")
+        return await self._join_resolved_group(user, group, personal_tasks)
+
+    async def _join_resolved_group(
+        self,
+        user: Profile,
+        group: Group,
+        personal_tasks: list[str] | None = None,
+    ) -> Group:
         if group.status != "active":
             raise AppError("GROUP_INACTIVE", "This group is no longer active")
 
@@ -307,11 +344,55 @@ class GroupService:
         await self.db.flush()
         return group
 
+    async def list_public_groups(self, user_id: UUID) -> list[dict]:
+        """Active public groups, for the Discover list."""
+        result = await self.db.execute(
+            select(Group).where(Group.is_public.is_(True), Group.status == "active")
+            .order_by(Group.created_at.desc())
+        )
+        groups = result.scalars().all()
+
+        my_group_ids: set = set()
+        if groups:
+            my_rows = await self.db.execute(
+                select(GroupMember.group_id).where(
+                    GroupMember.user_id == user_id,
+                    GroupMember.group_id.in_([g.id for g in groups]),
+                )
+            )
+            my_group_ids = {row[0] for row in my_rows.all()}
+
+        output = []
+        for g in groups:
+            leader = (
+                await self.db.execute(select(Profile).where(Profile.id == g.leader_id))
+            ).scalar_one_or_none()
+            member_count = (
+                await self.db.execute(
+                    select(func.count()).select_from(GroupMember).where(GroupMember.group_id == g.id)
+                )
+            ).scalar() or 0
+            output.append(
+                {
+                    "id": g.id,
+                    "name": g.name,
+                    "duration_days": g.duration_days,
+                    "task_mode": getattr(g, "task_mode", None) or "shared",
+                    "group_tasks": await self._group_task_titles(g.id),
+                    "starts_at": g.starts_at,
+                    "max_missed_days": g.max_missed_days,
+                    "leader_name": leader.full_name if leader else None,
+                    "member_count": member_count,
+                    "is_member": g.id in my_group_ids,
+                }
+            )
+        return output
+
     async def get_user_groups(self, user_id: UUID) -> list[dict]:
         result = await self.db.execute(
             select(Group)
             .join(GroupMember)
-            .where(GroupMember.user_id == user_id)
+            .where(GroupMember.user_id == user_id, Group.status == "active")
             .options(selectinload(Group.members))
         )
         groups = result.scalars().all()
@@ -330,7 +411,7 @@ class GroupService:
                     "task_mode": getattr(g, "task_mode", None) or "shared",
                     "member_count": len(g.members),
                     "today_completion_percent": today_pct,
-                    "current_day": max(1, (date.today() - g.starts_at).days + 1),
+                    "current_day": max(1, (app_today() - g.starts_at).days + 1),
                 }
             )
         return output
@@ -595,6 +676,7 @@ class GroupService:
                 "starts_at": group.starts_at,
                 "status": group.status,
                 "task_mode": getattr(group, "task_mode", None) or "shared",
+                "is_public": getattr(group, "is_public", False),
                 "member_count": member_count,
                 "is_leader": is_leader,
                 "leader_id": group.leader_id,
@@ -751,7 +833,7 @@ class GroupService:
     async def _ensure_group_days(self, challenge: Challenge) -> None:
         if challenge.days:
             return
-        start = challenge.start_date or date.today()
+        start = challenge.start_date or app_today()
         for day_num in range(1, challenge.duration_days + 1):
             self.db.add(
                 ChallengeDay(
@@ -861,12 +943,15 @@ class GroupService:
         group, _, is_leader = await self._ensure_membership(group_id, leader_id)
         if not is_leader:
             raise ForbiddenError("Only the leader can update group settings")
-        if "name" in data and data["name"]:
-            group.name = data["name"]
+        if "name" in data and data["name"] and data["name"].strip().lower() != group.name.lower():
+            await self._check_name_available(data["name"], exclude_group_id=group.id)
+            group.name = data["name"].strip()
         if "max_missed_days" in data:
             group.max_missed_days = data["max_missed_days"]
         if "penalty_rules" in data:
             group.penalty_rules = data["penalty_rules"]
+        if "is_public" in data and data["is_public"] is not None:
+            group.is_public = bool(data["is_public"])
         await self.db.flush()
         return group
 
@@ -877,7 +962,7 @@ class GroupService:
         if not is_leader:
             raise ForbiddenError("Only the leader can view the day roster")
 
-        target = roster_date or date.today()
+        target = roster_date or app_today()
         if target < group.starts_at:
             target = group.starts_at
         end_date = group.starts_at + timedelta(days=group.duration_days - 1)
@@ -1262,7 +1347,7 @@ class GroupService:
                     "member_count": members,
                     "total_points": total,
                     "average_points": round(total / members) if members else 0,
-                    "current_day": max(1, min(g.duration_days, (date.today() - g.starts_at).days + 1)),
+                    "current_day": max(1, min(g.duration_days, (app_today() - g.starts_at).days + 1)),
                     "duration_days": g.duration_days,
                     "is_yours": g.id in mine,
                 }

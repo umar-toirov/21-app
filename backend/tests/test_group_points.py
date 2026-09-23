@@ -1,7 +1,7 @@
 """Group points are tracked per group challenge, separate from personal HP."""
 
 import uuid
-from datetime import date
+from app.core.security import app_today
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -31,7 +31,7 @@ def _challenge(user: Profile, group_id=None, name="c") -> Challenge:
         name=name,
         duration_days=21,
         status=ChallengeStatus.ACTIVE,
-        start_date=date.today(),
+        start_date=app_today(),
         current_day=1,
         group_id=group_id,
     )
@@ -58,7 +58,7 @@ async def test_group_ranking_uses_group_points_only(session):
     ana, ben, cy, dee = (_profile(n) for n in ("Ana", "Ben", "Cy", "Dee"))
     group = Group(
         id=uuid.uuid4(), leader_id=ana.id, name="G", invite_code="ABC123",
-        duration_days=21, starts_at=date.today(),
+        duration_days=21, starts_at=app_today(),
     )
     session.add_all([ana, ben, cy, dee, group])
     await session.flush()
@@ -80,7 +80,7 @@ async def test_group_ranking_uses_group_points_only(session):
     session.add_all(_events(cy, cy_g, [-15, -15]))                   # floors at 0
     # Dee: legacy challenge with no events, 3 complete days -> 30
     session.add_all(
-        ChallengeDay(challenge_id=dee_g.id, day_number=n, calendar_date=date.today(),
+        ChallengeDay(challenge_id=dee_g.id, day_number=n, calendar_date=app_today(),
                      is_complete=True)
         for n in (1, 2, 3)
     )

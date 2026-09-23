@@ -1,7 +1,7 @@
 """Groups: admin-set tasks, joining, leaving, chat, group leaderboard, cancel, calendar."""
 
 import uuid
-from datetime import date, timedelta
+from app.core.security import app_today
 
 import pytest
 from sqlalchemy import select
@@ -39,15 +39,16 @@ async def _user(session, name: str) -> Profile:
     return p
 
 
-def _data(mode="shared", group_tasks=("Read 20 pages", "Walk 30 minutes"), own=()):
+def _data(mode="shared", group_tasks=("Read 20 pages", "Walk 30 minutes"), own=(), name="Study Squad", is_public=False):
     return {
-        "name": "Study Squad",
+        "name": name,
         "duration_days": 21,
         "max_missed_days": 3,
-        "starts_at": date.today(),
+        "starts_at": app_today(),
         "group_tasks": list(group_tasks),
         "task_mode": mode,
         "personal_tasks": list(own),
+        "is_public": is_public,
     }
 
 
@@ -114,7 +115,7 @@ def test_old_apps_can_still_send_foundation_tasks():
         {
             "name": "G",
             "duration_days": 21,
-            "starts_at": date.today().isoformat(),
+            "starts_at": app_today().isoformat(),
             "foundation_tasks": ["A", "B"],
         }
     )
@@ -164,6 +165,7 @@ async def test_leave_and_end_group(session):
 
     await service.end_group(group.id, admin.id)
     assert group.status == "ended"
+    assert group.id not in [g["id"] for g in await service.get_user_groups(admin.id)]
     assert (await _challenge_of(session, admin, group)).status == ChallengeStatus.ARCHIVED
 
 
@@ -314,7 +316,7 @@ async def test_calendar_shows_what_the_user_did(session):
         personal_tasks=["Read 30 min", "Write notes"], include_foundation=False,
     )
     c = await challenges.get_active_challenge(admin.id)
-    today = date.today()
+    today = app_today()
 
     empty = await challenges.activity_for_month(admin.id, today.year, today.month)
     assert next(d for d in empty["days"] if d["date"] == today.isoformat())["status"] == "pending"
@@ -331,3 +333,71 @@ async def test_calendar_shows_what_the_user_did(session):
     day = next(d for d in month["days"] if d["date"] == today.isoformat())
     assert day["status"] == "done" and day["done"] == 2
     assert month["totals"]["tasks_done"] == 2 and month["totals"]["perfect_days"] == 1
+
+
+# ------------------------------------------------------------------ names & visibility
+async def test_group_names_are_unique_case_insensitive(session):
+    admin = await _user(session, "Ana")
+    other = await _user(session, "Ben")
+    service = GroupService(session)
+    await service.create_group(admin, _data(name="Study Squad"))
+
+    with pytest.raises(ConflictError):
+        await service.create_group(other, _data(name="study squad"))
+
+    # Freed up once the group ends.
+    group = (await session.execute(select(Challenge).where(Challenge.user_id == admin.id))).scalar_one()
+    from app.models.profile import Group as GroupModel
+
+    row = (await session.execute(select(GroupModel).where(GroupModel.leader_id == admin.id))).scalar_one()
+    row.status = "ended"
+    await session.flush()
+    reused = await service.create_group(other, _data(name="Study Squad"))
+    assert reused.name == "Study Squad"
+
+
+async def test_renaming_a_group_checks_uniqueness(session):
+    admin = await _user(session, "Ana")
+    other = await _user(session, "Ben")
+    service = GroupService(session)
+    mine = await service.create_group(admin, _data(name="Alpha Team"))
+    theirs = await service.create_group(other, _data(name="Beta Team"))
+
+    with pytest.raises(ConflictError):
+        await service.update_group(theirs.id, other.id, {"name": "Alpha Team"})
+
+    # Renaming to the same name (any case) is a no-op, not a conflict.
+    await service.update_group(mine.id, admin.id, {"name": "alpha team"})
+    # A genuinely free name works.
+    await service.update_group(mine.id, admin.id, {"name": "Alpha Squad"})
+    assert mine.name == "Alpha Squad"
+
+
+async def test_public_groups_are_discoverable_and_joinable_without_a_code(session):
+    admin = await _user(session, "Ana")
+    seeker = await _user(session, "Ben")
+    service = GroupService(session)
+    public_group = await service.create_group(admin, _data(name="Open Study", is_public=True))
+    await service.create_group(await _user(session, "Cy"), _data(name="Closed Study", is_public=False))
+
+    listing = await service.list_public_groups(seeker.id)
+    names = {g["name"] for g in listing}
+    assert "Open Study" in names
+    assert "Closed Study" not in names
+    entry = next(g for g in listing if g["name"] == "Open Study")
+    assert entry["is_member"] is False
+
+    joined = await service.join_public_group(seeker, public_group.id)
+    assert joined.id == public_group.id
+    members = (await session.execute(select(GroupMember.user_id).where(GroupMember.group_id == public_group.id))).scalars().all()
+    assert seeker.id in members
+
+
+async def test_private_groups_cannot_be_joined_via_the_public_endpoint(session):
+    admin = await _user(session, "Ana")
+    seeker = await _user(session, "Ben")
+    service = GroupService(session)
+    private_group = await service.create_group(admin, _data(name="Invite Only", is_public=False))
+
+    with pytest.raises(ForbiddenError):
+        await service.join_public_group(seeker, private_group.id)

@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/google_sign_in_button.dart';
 import '../../../../core/widgets/shared_widgets.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -85,12 +84,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
-              GoogleSignInButton(
-                onError: (msg) => setState(() => _error = msg),
-              ),
-              const SizedBox(height: 16),
-              const AuthDivider(),
-              const SizedBox(height: 16),
               TextField(
                 controller: _email,
                 decoration: const InputDecoration(

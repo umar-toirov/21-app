@@ -38,6 +38,8 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
   /// 'shared' = everyone does the admin's tasks. 'freedom' = members also pick their own.
   String _mode = 'shared';
+  // Private (invite-only) is the default so existing behavior is unchanged.
+  bool _isPublic = false;
   final List<String> _groupTasks = [];
   final List<String> _ownTasks = [];
 
@@ -118,6 +120,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
         'task_mode': _mode,
         'group_tasks': _groupTasks,
         'personal_tasks': _mode == 'freedom' ? _ownTasks : <String>[],
+        'is_public': _isPublic,
       });
       ref.invalidate(groupsProvider);
       ref.invalidate(activeChallengeProvider);
@@ -161,6 +164,23 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                           hintText: 'e.g. Morning Discipline Squad',
                           counterText: '',
                         ),
+                      ),
+                      const SizedBox(height: 26),
+                      const _Label('Who can join?'),
+                      _ModeCard(
+                        selected: !_isPublic,
+                        icon: Icons.lock_outline_rounded,
+                        title: 'Private',
+                        body: 'Invite-only. People join with your invite code.',
+                        onTap: () => setState(() => _isPublic = false),
+                      ),
+                      const SizedBox(height: 10),
+                      _ModeCard(
+                        selected: _isPublic,
+                        icon: Icons.public_rounded,
+                        title: 'Public',
+                        body: 'Listed in Discover. Anyone can find and join it — no code needed.',
+                        onTap: () => setState(() => _isPublic = true),
                       ),
                       const SizedBox(height: 22),
                       const _Label('How long?'),

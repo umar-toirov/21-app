@@ -6,6 +6,7 @@ Needs Pillow and Google Chrome (used only to render the SVG; set CHROME to overr
 Writes:
   android/app/src/main/res/  adaptive icon layers, legacy launcher icons, splash images
   web/icons + web/favicon.png
+  ios/Runner/Assets.xcassets/AppIcon.appiconset (opaque, all sizes)
   assets/brand/app_icon.png, app_glyph.png (white check, for dark), app_glyph_light.png
   (navy check, for light backgrounds), app_icon_1024.png (store icon)
 """
@@ -143,6 +144,14 @@ def main():
     flat.alpha_composite(bg)
     flat.alpha_composite(fg)
     flat.convert("RGB").save(os.path.join(ROOT, "assets", "brand", "app_icon_1024.png"))
+
+    # iOS: square, opaque (Apple rejects icons with transparency; it rounds the corners).
+    ios = os.path.join(ROOT, "ios", "Runner", "Assets.xcassets", "AppIcon.appiconset")
+    for name in os.listdir(ios):
+        m = re.match(r"Icon-App-([\d.]+)x[\d.]+@(\d)x\.png$", name)
+        if m:
+            px = round(float(m.group(1)) * int(m.group(2)))
+            flat.convert("RGB").resize((px, px), Image.LANCZOS).save(os.path.join(ios, name))
 
     # Web: normal icons use the rounded design; maskable icons need a full-bleed
     # background and extra padding for the safe zone.

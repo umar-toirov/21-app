@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/models/models.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -12,10 +13,15 @@ import '../../../../core/widgets/task_list_editor.dart';
 import 'create_group_screen.dart' show groupTaskSuggestions;
 
 class JoinGroupScreen extends ConsumerStatefulWidget {
-  const JoinGroupScreen({super.key, this.initialCode});
+  const JoinGroupScreen({super.key, this.initialCode, this.publicGroup});
 
   /// Pre-fills and looks up this invite code (e.g. from a shared link).
   final String? initialCode;
+
+  /// Joining a public group picked from Discover: no code to look up, this
+  /// carries what we already know so the screen goes straight to the
+  /// task-picking + confirm step.
+  final PublicGroupModel? publicGroup;
 
   @override
   ConsumerState<JoinGroupScreen> createState() => _JoinGroupScreenState();
@@ -28,9 +34,26 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
   Map<String, dynamic>? _preview;
   final List<String> _ownTasks = [];
 
+  bool get _isPublicJoin => widget.publicGroup != null;
+
   @override
   void initState() {
     super.initState();
+    final g = widget.publicGroup;
+    if (g != null) {
+      _preview = {
+        'name': g.name,
+        'duration_days': g.durationDays,
+        'task_mode': g.taskMode,
+        'group_tasks': g.groupTasks,
+        'foundation_tasks': g.groupTasks,
+        'starts_at': g.startsAt,
+        'max_missed_days': g.maxMissedDays,
+        'leader_name': g.leaderName,
+        'member_count': g.memberCount,
+      };
+      return;
+    }
     final code = widget.initialCode;
     if (code != null && code.isNotEmpty) {
       _code.text = code.toUpperCase();
@@ -110,10 +133,16 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
 
     setState(() => _joining = true);
     try {
-      final group = await ref.read(apiRepositoryProvider).joinGroup(
-            _code.text.trim().toUpperCase(),
-            personalTasks: _freedom ? _ownTasks : null,
-          );
+      final api = ref.read(apiRepositoryProvider);
+      final group = _isPublicJoin
+          ? await api.joinPublicGroup(
+              widget.publicGroup!.id,
+              personalTasks: _freedom ? _ownTasks : null,
+            )
+          : await api.joinGroup(
+              _code.text.trim().toUpperCase(),
+              personalTasks: _freedom ? _ownTasks : null,
+            );
       ref.invalidate(groupsProvider);
       ref.invalidate(activeChallengeProvider);
       ref.invalidate(activeProgramsProvider);
@@ -130,7 +159,7 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
   Widget build(BuildContext context) {
     final p = _preview;
     return Scaffold(
-      appBar: AppBar(title: const Text('Join a group')),
+      appBar: AppBar(title: Text(_isPublicJoin ? 'Join group' : 'Join a group')),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -142,40 +171,42 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
                     keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                     children: [
-                      Text(
-                        'Enter the invite code the group admin shared with you.',
-                        style: TextStyle(fontSize: 14.5, height: 1.4, color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: _code,
-                        textCapitalization: TextCapitalization.characters,
-                        textInputAction: TextInputAction.search,
-                        maxLength: 12,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
-                          TextInputFormatter.withFunction(
-                            (_, v) => v.copyWith(text: v.text.toUpperCase()),
+                      if (!_isPublicJoin) ...[
+                        Text(
+                          'Enter the invite code the group admin shared with you.',
+                          style: TextStyle(fontSize: 14.5, height: 1.4, color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: _code,
+                          textCapitalization: TextCapitalization.characters,
+                          textInputAction: TextInputAction.search,
+                          maxLength: 12,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
+                            TextInputFormatter.withFunction(
+                              (_, v) => v.copyWith(text: v.text.toUpperCase()),
+                            ),
+                          ],
+                          onChanged: (_) {
+                            if (_preview != null) setState(() => _preview = null);
+                          },
+                          onSubmitted: (_) => _lookup(),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 4,
                           ),
-                        ],
-                        onChanged: (_) {
-                          if (_preview != null) setState(() => _preview = null);
-                        },
-                        onSubmitted: (_) => _lookup(),
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 4,
+                          decoration: const InputDecoration(hintText: 'ABC123', counterText: ''),
                         ),
-                        decoration: const InputDecoration(hintText: 'ABC123', counterText: ''),
-                      ),
-                      const SizedBox(height: 12),
-                      if (p == null)
-                        PrimaryButton(
-                          label: 'Find group',
-                          isLoading: _looking,
-                          onPressed: _lookup,
-                        ),
+                        const SizedBox(height: 12),
+                        if (p == null)
+                          PrimaryButton(
+                            label: 'Find group',
+                            isLoading: _looking,
+                            onPressed: _lookup,
+                          ),
+                      ],
                       if (p != null) ...[
                         const SizedBox(height: 8),
                         _GroupCard(preview: p),
