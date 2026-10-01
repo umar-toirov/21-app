@@ -1,0 +1,21 @@
+name: Keep API awake
+
+# Pings the Render free-plan API every 10 minutes so it doesn't go to sleep
+# and cold-start on someone's next request (~30-60s otherwise). Render's
+# free plan sleeps after ~15 min idle, so this keeps it just inside that
+# window. See AGENTS.md -> Build, deploy, git.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: GET /v1/health
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 https://ilm-mode-api.onrender.com/v1/health)
+          echo "status: $code"
+          if [ "$code" != "200" ]; then exit 1; fi
