@@ -92,7 +92,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
             child: catalogAsync.when(
-              loading: () => Center(
+              loading: () => const Center(
                 child: CircularProgressIndicator(color: AppColors.orange),
               ),
               error: (e, _) => _LoadError(

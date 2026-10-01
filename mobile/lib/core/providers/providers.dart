@@ -385,7 +385,10 @@ final activeProgramsProvider = StreamProvider<ActiveProgramsModel>((ref) async* 
   ActiveProgramsModel? first;
   if (cached != null) {
     try {
-      first = ActiveProgramsModel.fromJson(cached);
+      // A snapshot cached on an earlier day can't be trusted to say whether
+      // today's tasks are done — show it, but never as a false "all done".
+      final safe = AppCache.programsAreForToday ? cached : _withTodayNotDone(cached);
+      first = ActiveProgramsModel.fromJson(safe);
       yield first;
     } catch (_) {}
   }
@@ -395,6 +398,24 @@ final activeProgramsProvider = StreamProvider<ActiveProgramsModel>((ref) async* 
     if (first == null) rethrow;
   }
 });
+
+/// Resets a cached programs snapshot's "done today" state. Used only when
+/// the snapshot is from a previous day, so leftover completions from
+/// yesterday never show as if they were today's.
+Map<String, dynamic> _withTodayNotDone(Map<String, dynamic> programs) {
+  for (final key in const ['personal', 'group']) {
+    final c = programs[key];
+    if (c is! Map<String, dynamic>) continue;
+    c['day_complete'] = false;
+    final tasks = c['tasks'];
+    if (tasks is List) {
+      for (final t in tasks) {
+        if (t is Map) t['is_completed'] = false;
+      }
+    }
+  }
+  return programs;
+}
 
 final challengesListProvider = FutureProvider<List<ChallengeSummaryModel>>((ref) async {
   return ref.watch(apiRepositoryProvider).listChallenges();

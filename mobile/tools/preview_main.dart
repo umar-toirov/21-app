@@ -4,7 +4,7 @@
 //   open  index.html?screen=<name>[&dark=1][&tab=1][&groups=1]
 //
 // Screens: detail, home, picker, setup, intro, group (tab=0..3), leaderboard
-// (groups=1), create, join. Handy for screenshots and design review; not shipped.
+// (groups=1), create, join, discover, landing. Handy for screenshots and design review; not shipped.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,10 +15,12 @@ import 'package:ilm_mode/core/providers/providers.dart';
 import 'package:ilm_mode/core/services/sound_service.dart';
 import 'package:ilm_mode/core/theme/app_theme.dart';
 import 'package:ilm_mode/core/widgets/brand_intro.dart';
+import 'package:ilm_mode/features/auth/presentation/screens/landing_screen.dart';
 import 'package:ilm_mode/features/challenge/presentation/screens/challenge_dashboard_screen.dart';
 import 'package:ilm_mode/features/challenge/presentation/screens/challenge_detail_screen.dart';
 import 'package:ilm_mode/features/challenge/presentation/screens/challenge_setup_screen.dart';
 import 'package:ilm_mode/features/group_challenge/presentation/screens/create_group_screen.dart';
+import 'package:ilm_mode/features/group_challenge/presentation/screens/discover_groups_screen.dart';
 import 'package:ilm_mode/features/group_challenge/presentation/screens/group_home_screen.dart';
 import 'package:ilm_mode/features/group_challenge/presentation/screens/join_group_screen.dart';
 import 'package:ilm_mode/features/onboarding/presentation/screens/onboarding_screen.dart';
@@ -132,7 +134,17 @@ class _PreviewApi implements ApiRepository {
 
   @override
   Future<Map<String, dynamic>> getGroupDayRoster(String groupId, {String? date}) async => {
-        'date': '2026-09-20', 'prev_date': null, 'next_date': null, 'starts_at': '2026-09-17', 'ends_at': '2026-10-07', 'members': <dynamic>[],
+        'date': '2026-09-20', 'prev_date': null, 'next_date': null, 'starts_at': '2026-09-17', 'ends_at': '2026-10-07',
+        'members': [
+          for (final (i, m) in [('Ana', true, 2), ('Ben', true, 2), ('Cy', false, 1)].indexed)
+            {
+              'user_id': 'r$i', 'full_name': m.$1, 'day_complete': m.$2,
+              'tasks': [
+                {'title': 'Read 20 pages', 'completed': true, 'type': 'foundation'},
+                {'title': 'Walk 30 minutes', 'completed': m.$3 > 1, 'type': 'foundation'},
+              ],
+            }
+        ],
       };
 
   @override
@@ -201,6 +213,14 @@ class _PreviewApi implements ApiRepository {
       ];
 
   @override
+  Future<List<PublicGroupModel>> getPublicGroups() async => [
+        PublicGroupModel(id: 'p1', name: 'Morning Discipline Squad', durationDays: 21, groupTasks: const ['Wake up before 6', 'Cold shower'], startsAt: '2026-10-01', maxMissedDays: 3, leaderName: 'Ana Karimova', memberCount: 18),
+        PublicGroupModel(id: 'p2', name: 'Deep Work Club', durationDays: 30, taskMode: 'freedom', startsAt: '2026-10-03', maxMissedDays: 3, leaderName: 'Ben Yusupov', memberCount: 9),
+        PublicGroupModel(id: 'p3', name: 'Read 20 Pages', durationDays: 21, groupTasks: const ['Read 20 pages'], startsAt: '2026-10-05', maxMissedDays: 2, leaderName: 'Dilnoza', memberCount: 27),
+        PublicGroupModel(id: 'p4', name: 'No Sugar Club', durationDays: 21, groupTasks: const ['No sugar today'], startsAt: '2026-10-02', maxMissedDays: 3, leaderName: 'Eldor', memberCount: 12),
+      ];
+
+  @override
   Future<Map<String, dynamic>> previewGroupInvite(String inviteCode) async => {
         'name': 'Study Squad', 'duration_days': 21, 'task_mode': 'shared',
         'group_tasks': ['Read 20 pages', 'Walk 30 minutes', 'No phone before bed'],
@@ -239,6 +259,8 @@ Future<void> main() async {
       ),
       GoRoute(path: '/create', builder: (_, __) => const CreateGroupScreen()),
       GoRoute(path: '/join', builder: (_, __) => const JoinGroupScreen(initialCode: 'K7QX2M')),
+      GoRoute(path: '/discover', builder: (_, __) => const DiscoverGroupsScreen()),
+      GoRoute(path: '/landing', builder: (_, __) => const LandingScreen()),
     ],
   );
 

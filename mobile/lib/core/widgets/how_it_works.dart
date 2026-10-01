@@ -25,7 +25,7 @@ class _Slide {
 }
 
 List<_Slide> get _slides => [
-  _Slide(
+  const _Slide(
     Icons.flag_rounded,
     AppColors.orange,
     'One challenge, a few tasks a day',
@@ -33,7 +33,7 @@ List<_Slide> get _slides => [
         'every day, and choose when to start. You can add "daily basics" too: '
         'wake up on time, plan your day, review the evening.',
   ),
-  _Slide(
+  const _Slide(
     Icons.bolt_rounded,
     AppColors.orange,
     'Every task earns points',
@@ -41,14 +41,14 @@ List<_Slide> get _slides => [
         'when you finish all of them in a day. Your points decide your place on '
         'the leaderboard.',
   ),
-  _Slide(
+  const _Slide(
     Icons.local_fire_department_rounded,
     AppColors.teal,
     'Keep your streak',
     'Finish all your tasks each day to grow your streak. A new day starts at '
         'midnight, so you can only do today\'s tasks today. Tomorrow unlocks itself.',
   ),
-  _Slide(
+  const _Slide(
     Icons.trending_down_rounded,
     AppColors.danger,
     'Missing a day costs you',

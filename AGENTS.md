@@ -257,7 +257,8 @@ Brand: primary orange `#F15A29`, teal success, gold achievements, blue accent on
 
 - Cause: the API runs on Render's free plan, which sleeps when idle (30–60 s wake) and every launch blocked on `GET /me`, with 15 s timeouts and retries
 - Fixes: `core/cache/app_cache.dart` keeps the last profile/programs (and an `onboarded` flag); `profileProvider` and `activeProgramsProvider` are now **`StreamProvider`s that emit the cached value first, then the fresh one** (errors are swallowed if a cache exists). The router sends a signed-in, onboarded user straight to Home. Dio timeouts are 30 s connect / 60 s receive, with 2 automatic retries for GETs. `main.dart` fires a warm-up `GET /health` immediately. `SlowLoadingHint` explains the wait after 6 s
-- Real fix still needed on the server side: an always-on host, or a cron keep-alive pinging `/v1/health` every ~10 min. Tests must override these providers with `Stream.value(...)`
+- Keep-alive: `.github/workflows/keep-alive.yml` pings `/v1/health` every 10 min (see *Open TODOs* for the free-plan instance-hours caveat). Tests must override these providers with `Stream.value(...)`
+- **A cached snapshot is one calendar day old at most before it's distrusted.** `AppCache.savePrograms` tags the cache with `AppCache.todayTag()` (UTC+5, matches the backend's `app_today()`). `activeProgramsProvider` checks `AppCache.programsAreForToday` before yielding the cached value as-is; if it's from an earlier day, `_withTodayNotDone()` resets `day_complete`/`is_completed` to false first. Without this, opening the app the first time on a new day could flash yesterday's "day complete, nothing to do" state for as long as the real fetch takes (worse on a cold Render start). Test: `test/app_cache_test.dart`
 
 ## Branding (app name **Habit Zone**)
 
@@ -318,7 +319,7 @@ Brand: primary orange `#F15A29`, teal success, gold achievements, blue accent on
 ## Open TODOs / recommendations
 
 - Add the three GitHub Actions **Variables**, then run **Build APK** (or fix the local NDK)
-- Set up the **midnight `close-day` scheduler** and a `/v1/health` keep-alive
+- **Render has not redeployed since `f388adc` (2026-09-23).** Confirmed live: `GET /groups/public` 405s in production (matches the old bare `/groups/{id}` route, method not allowed) and the response has no `is_public`/`group_tasks` fields — the Tashkent day-cutoff (`app_today()`), unique group names, and public/private groups are **not live**. Until someone manually redeploys on the Render dashboard (or pushes an empty commit if auto-deploy is on but stuck), days still roll over on the server's UTC date (05:00 Tashkent) and Discover/public-group endpoints 404/405 in the app. This is very likely the biggest cause of "day resets, but tasks look wrong" reports right after local midnight
 - Choose a permanent **package id** (e.g. `com.ilmhub.twentyone`) and create a **release keystore** (release builds are signed with the debug key)
 - Remove `usesCleartextTraffic="true"` from `AndroidManifest.xml` for production (the API is HTTPS)
 - Get a **vector or ≥1024 px logo** (the emblem is ~220×280 px, so the store icon and splash are upscaled) and a real **dark-mode wordmark**
@@ -327,7 +328,7 @@ Brand: primary orange `#F15A29`, teal success, gold achievements, blue accent on
 - Not yet visually verified: logged-in screens in dark mode, the intro animation frame by frame, the icon and splash on a real device
 - Full-app widget test is not possible offline (Supabase init + google_fonts downloads); screens are tested with provider overrides and plain `ThemeData` (see `challenge_flow_test.dart`)
 - Play release: follow `docs/PLAY_STORE.md` (upload key, privacy policy URL with real contact email, screenshots, report-message feature)
-- Set up a **keep-alive ping / always-on host** so cold starts stop hurting (see *Startup speed*)
+- **Keep-alive:** `.github/workflows/keep-alive.yml` pings `/v1/health` every 10 minutes so the free Render instance doesn't sleep. Caveat: Render's free plan gives ~750 instance-hours/month **shared across all free services on the account** — pinging it awake around the clock uses close to that whole budget by itself, so if there's another free service on the same account, one of them will get spun down once the monthly hours run out. Fine with just this one service; revisit if that changes
 - Groups: optional opt-out from the public groups leaderboard; push/unread badges for chat (polling only for now); moderation beyond admin delete
 - Discover (public groups) has no search/filter/pagination yet — fine while few groups are public, revisit if that grows
 - No UI yet to toggle an existing group's visibility after creation (backend supports it via `PATCH /groups/{id}`, `GroupUpdate.is_public`) — add a switch to `group_settings_screen.dart` if wanted
@@ -355,3 +356,13 @@ Brand: primary orange `#F15A29`, teal success, gold achievements, blue accent on
 - `docs/PLAY_STORE.md` = listing text, Data safety answers, release steps. `docs/privacy.html` = privacy policy (replace `CONTACT_EMAIL`, host it). Store graphics: `tools/generate_store_assets.py` → `mobile/store/`
 - Not verified locally: the release build (broken local NDK) — first run goes through GitHub Actions
 - Missing before production: a "Report message" action for group chat (Play UGC policy)
+
+## Task bundles (custom challenge setup)
+
+- `challenge_setup_screen.dart` (the "create your own" / add-extra-tasks step, for **new** challenges only — existing challenges are untouched) has a `_taskSuggestions` chip row below the manual task field. Most suggestions add one task; a few (e.g. "SAT studying") are a **bundle** that adds several tasks in one tap (tagged with a layers icon and a `(N)` count). Tapping skips tasks already added and stops at the 10-task limit (same rules as typing one by hand, via the new `_addSuggestion`). No backend or data model change — it only prefills `_tasks` client-side before submit
+- To add more bundles, extend the `_taskSuggestions` const list (`{label, tasks}`)
+
+## CI
+
+- `flutter analyze` must return **zero issues, including `info`** — the CI step has no `continue-on-error`, so even a lint-level `info` fails the whole job (this was the actual cause behind a run of red "CI" checks; `Build APK`/`Build Play Store bundle` are separate jobs and were unaffected). Run `dart fix --apply` plus a manual pass before pushing if `flutter analyze` isn't clean
+- `backend/pyproject.toml` now pins `[tool.ruff.lint] select = ["E4", "E7", "E9", "F"]` explicitly. An unpinned `pip install ruff` once resolved a version whose effective rule set also included `flake8-bugbear` (flagged FastAPI's own `Depends(...)` default-argument pattern, used everywhere in this app) and import-sorting — neither is in ruff's documented stable defaults, so don't rely on ruff's implicit defaults again

@@ -102,9 +102,9 @@ class _SnappyTransitions extends PageTransitionsBuilder {
 }
 
 class AppTheme {
-  static final _transitions = PageTransitionsTheme(
+  static final _transitions = const PageTransitionsTheme(
     builders: {
-      TargetPlatform.android: const _SnappyTransitions(),
+      TargetPlatform.android: _SnappyTransitions(),
       TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
       TargetPlatform.windows: _SnappyTransitions(),
       TargetPlatform.macOS: _SnappyTransitions(),

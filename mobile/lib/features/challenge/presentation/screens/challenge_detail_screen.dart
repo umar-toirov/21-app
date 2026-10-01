@@ -399,7 +399,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                       ),
                   ],
                   if (isToday && !challenge.isScheduled && totalToday > 0 && doneToday == totalToday)
-                    _Banner(
+                    const _Banner(
                       icon: Icons.check_circle_rounded,
                       color: AppColors.success,
                       text: 'All done for today. The next day unlocks after midnight.',

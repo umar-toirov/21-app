@@ -15,6 +15,34 @@ import '../../../../core/widgets/shared_widgets.dart';
 
 enum _StartChoice { today, tomorrow, pick }
 
+/// A tappable task suggestion. Most add one task; a few (like "SAT
+/// studying") are a bundle that adds several at once, so newcomers don't
+/// have to type out a whole study routine themselves.
+typedef _TaskSuggestion = ({String label, List<String> tasks});
+
+const _taskSuggestions = <_TaskSuggestion>[
+  (label: '10-minute walk', tasks: ['Walk for 10 minutes']),
+  (label: 'Drink water', tasks: ['Drink 8 glasses of water']),
+  (label: 'Read 20 pages', tasks: ['Read 20 pages']),
+  (
+    label: 'SAT studying',
+    tasks: ['Do 1 practice test section', 'Review 20 vocabulary words', 'Read and analyze 1 passage'],
+  ),
+  (
+    label: 'Gym workout',
+    tasks: ['Warm up for 5 minutes', 'Strength train for 30 minutes', 'Stretch for 5 minutes'],
+  ),
+  (
+    label: 'Morning routine',
+    tasks: ['Make the bed', 'Drink a glass of water', 'Stretch for 5 minutes'],
+  ),
+  (label: 'No phone before bed', tasks: ['No phone 30 minutes before bed']),
+  (
+    label: 'Language practice',
+    tasks: ['20 minutes of vocabulary', '10 minutes of listening practice'],
+  ),
+];
+
 /// Customise a challenge (from a framework or from scratch) and choose when it starts.
 class ChallengeSetupScreen extends ConsumerStatefulWidget {
   const ChallengeSetupScreen({super.key, this.template});
@@ -82,6 +110,31 @@ class _ChallengeSetupScreenState extends ConsumerState<ChallengeSetupScreen> {
     setState(() => _tasks.add(text));
     _taskField.clear();
     _taskFocus.requestFocus();
+  }
+
+  /// Adds every task in a suggestion at once (one for a simple suggestion,
+  /// several for a bundle like "SAT studying"). Skips ones already added
+  /// and stops at the task limit, same rules as adding one by hand.
+  void _addSuggestion(_TaskSuggestion suggestion) {
+    HapticFeedback.selectionClick();
+    var added = 0;
+    var skippedForLimit = false;
+    setState(() {
+      for (final text in suggestion.tasks) {
+        if (_tasks.any((t) => t.toLowerCase() == text.toLowerCase())) continue;
+        if (_tasks.length >= _maxTasks) {
+          skippedForLimit = true;
+          break;
+        }
+        _tasks.add(text);
+        added++;
+      }
+    });
+    if (skippedForLimit) {
+      _toast(added > 0
+          ? 'Added $added of ${suggestion.tasks.length} — you reached the $_maxTasks task limit.'
+          : 'You can add up to $_maxTasks tasks.');
+    }
   }
 
   void _toast(String message) {
@@ -276,6 +329,22 @@ class _ChallengeSetupScreenState extends ConsumerState<ChallengeSetupScreen> {
                             tooltip: 'Add task',
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final s in _taskSuggestions)
+                            if (!s.tasks.every((t) => _tasks.any((x) => x.toLowerCase() == t.toLowerCase())))
+                              ActionChip(
+                                avatar: s.tasks.length > 1
+                                    ? const Icon(Icons.layers_rounded, size: 16, color: AppColors.orange)
+                                    : null,
+                                label: Text(s.tasks.length > 1 ? '${s.label} (${s.tasks.length})' : s.label),
+                                onPressed: () => _addSuggestion(s),
+                              ),
+                        ],
                       ),
                       const SizedBox(height: 22),
                       SoftCard(
@@ -487,7 +556,7 @@ class _TaskRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.check_circle_outline_rounded, size: 20, color: AppColors.teal),
+          const Icon(Icons.check_circle_outline_rounded, size: 20, color: AppColors.teal),
           const SizedBox(width: 12),
           Expanded(
             child: Padding(

@@ -112,12 +112,12 @@ class BrandIntroScene extends StatelessWidget {
                           curve: Curves.easeOutCubic,
                         ),
                     const SizedBox(height: 22),
-                    FittedBox(
+                    const FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
                         AppConfig.appName,
                         maxLines: 1,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 38,
                           height: 1.1,
                           fontWeight: FontWeight.w800,

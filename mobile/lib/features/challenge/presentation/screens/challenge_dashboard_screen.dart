@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/models.dart';
+import '../../../../core/network/api_error.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/services/sound_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/how_it_works.dart';
 import '../../../../core/widgets/slow_loading_hint.dart';
@@ -320,7 +323,7 @@ class _HomeContent extends StatelessWidget {
   }
 }
 
-class _TodayTaskStrip extends StatelessWidget {
+class _TodayTaskStrip extends ConsumerStatefulWidget {
   const _TodayTaskStrip({
     required this.label,
     required this.challenge,
@@ -330,6 +333,49 @@ class _TodayTaskStrip extends StatelessWidget {
   final String label;
   final ChallengeModel challenge;
   final int taskLimit;
+
+  @override
+  ConsumerState<_TodayTaskStrip> createState() => _TodayTaskStripState();
+}
+
+class _TodayTaskStripState extends ConsumerState<_TodayTaskStrip> {
+  // Tasks completed here (not yet reflected by the refetched challenge), so
+  // a second tap can't double-submit while the request is in flight.
+  final Set<String> _pendingDone = {};
+
+  ChallengeModel get challenge => widget.challenge;
+  String get label => widget.label;
+  int get taskLimit => widget.taskLimit;
+
+  Future<void> _toggleTask(TaskModel task) async {
+    if (task.isCompleted || _pendingDone.contains(task.id)) return;
+    setState(() => _pendingDone.add(task.id));
+    try {
+      final result = await ref.read(apiRepositoryProvider).completeTask(challenge.id, task.id);
+      ref.invalidate(challengeDetailProvider(challenge.id));
+      ref.invalidate(activeChallengeProvider);
+      ref.invalidate(activeProgramsProvider);
+      ref.invalidate(profileProvider);
+      ref.invalidate(personalStatsProvider);
+      if (!mounted) return;
+      if (result['challenge_completed'] == true) {
+        SoundService.instance.playDay();
+        context.go(AppRoutes.challengeComplete);
+        return;
+      }
+      if (result['celebration'] == true) {
+        SoundService.instance.playDay();
+        HapticFeedback.heavyImpact();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _pendingDone.remove(task.id));
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -387,11 +433,10 @@ class _TodayTaskStrip extends StatelessWidget {
         ...challenge.tasks.take(taskLimit).map(
               (task) => TaskTile(
                 title: task.title,
-                isCompleted: task.isCompleted,
+                isCompleted: task.isCompleted || _pendingDone.contains(task.id),
                 isFoundation: task.type == 'foundation',
                 groupTask: challenge.isGroup,
-                onChanged: (_) =>
-                    context.push('/home/challenge/${challenge.id}'),
+                onChanged: task.isCompleted ? null : (_) => _toggleTask(task),
               ),
             ),
       ],
@@ -438,7 +483,7 @@ class _PersonalProgramCard extends StatelessWidget {
                   softColor: _accentSoft,
                   icon: Icons.flag_rounded,
                 ),
-                SizedBox(width: 14),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,7 +497,7 @@ class _PersonalProgramCard extends StatelessWidget {
                           height: 1.2,
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Text(
                         'Start a 21 or 30-day discipline challenge and level up yourself.',
                         style: TextStyle(
@@ -462,7 +507,7 @@ class _PersonalProgramCard extends StatelessWidget {
                           height: 1.35,
                         ),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
@@ -570,7 +615,7 @@ class _GroupProgramCard extends ConsumerWidget {
                   softColor: _accentSoft,
                   icon: Icons.groups_rounded,
                 ),
-                SizedBox(width: 14),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,7 +629,7 @@ class _GroupProgramCard extends ConsumerWidget {
                           height: 1.2,
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Text(
                         'Join or create a group for shared accountability.',
                         style: TextStyle(

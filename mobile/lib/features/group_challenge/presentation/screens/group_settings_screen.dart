@@ -25,6 +25,7 @@ class GroupSettingsScreen extends ConsumerStatefulWidget {
 class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
   late TextEditingController _nameCtrl;
   bool _saving = false;
+  bool _ending = false;
 
   @override
   void initState() {
@@ -95,6 +96,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
       ),
     );
     if (ok != true) return;
+    setState(() => _ending = true);
     try {
       await ref.read(apiRepositoryProvider).endGroup(widget.groupId);
       ref.invalidate(groupsProvider);
@@ -103,6 +105,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
       if (mounted) context.go('${AppRoutes.home}/groups');
     } catch (e) {
       if (mounted) {
+        setState(() => _ending = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
       }
     }
@@ -265,13 +268,19 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
           }),
           const SizedBox(height: 28),
           OutlinedButton.icon(
-            onPressed: _endGroup,
+            onPressed: _ending ? null : _endGroup,
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.danger,
               side: const BorderSide(color: AppColors.danger),
             ),
-            icon: const Icon(Icons.stop_circle_outlined),
-            label: const Text('End group'),
+            icon: _ending
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.danger),
+                  )
+                : const Icon(Icons.stop_circle_outlined),
+            label: Text(_ending ? 'Ending group…' : 'End group'),
           ),
         ],
       ),

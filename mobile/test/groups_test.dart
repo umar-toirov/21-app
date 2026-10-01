@@ -452,10 +452,10 @@ void main() {
         AppColors.isDark = dark;
         await tester.pumpWidget(MaterialApp(
           theme: _theme(dark),
-          home: Scaffold(
+          home: const Scaffold(
             body: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: RankList(entries: const [
+              padding: EdgeInsets.all(20),
+              child: RankList(entries: [
                 RankEntry(rank: 1, name: 'Ana', value: 120),
                 RankEntry(rank: 2, name: 'Ben', value: 95),
                 RankEntry(rank: 3, name: 'Cy', value: 60, isYou: true),

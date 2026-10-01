@@ -31,6 +31,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(apiRepositoryProvider).signIn(_email.text.trim(), _password.text);
       if (!mounted) return;
       final profile = await ref.read(apiRepositoryProvider).getProfile();
+      if (!mounted) return;
       if (profile.needsOnboarding) {
         context.go(AppRoutes.onboarding);
       } else {

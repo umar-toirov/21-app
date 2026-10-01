@@ -88,7 +88,7 @@ class _TaskListEditorState extends State<TaskListEditor> {
             ),
             child: Row(
               children: [
-                Icon(Icons.check_circle_outline_rounded, size: 20, color: AppColors.teal),
+                const Icon(Icons.check_circle_outline_rounded, size: 20, color: AppColors.teal),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Padding(

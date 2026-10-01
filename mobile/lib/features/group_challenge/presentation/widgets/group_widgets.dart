@@ -457,7 +457,7 @@ class GroupActivityFeed extends StatelessWidget {
     if (feed.isEmpty) {
       return SoftCard(
         child: Padding(
-          padding: EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
           child: Text(
             'Activity will appear here as your team completes missions.',
             textAlign: TextAlign.center,
@@ -888,8 +888,8 @@ class GroupLoadingState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(color: AppColors.orange),
-          SizedBox(height: 16),
+          const CircularProgressIndicator(color: AppColors.orange),
+          const SizedBox(height: 16),
           Text('Loading your team…',
               style: TextStyle(
                   fontWeight: FontWeight.w700, color: AppColors.textSecondary)),

@@ -269,7 +269,7 @@ class _GroupChatTabState extends ConsumerState<GroupChatTab> with WidgetsBinding
 
   Widget _body() {
     if (_loading) {
-      return Center(child: CircularProgressIndicator(color: AppColors.orange));
+      return const Center(child: CircularProgressIndicator(color: AppColors.orange));
     }
     if (_error != null && _messages.isEmpty) {
       return Center(
@@ -526,11 +526,11 @@ class _Bubble extends StatelessWidget {
             ),
           ),
           if (m.failed)
-            Padding(
-              padding: const EdgeInsets.only(top: 3, right: 4),
+            const Padding(
+              padding: EdgeInsets.only(top: 3, right: 4),
               child: Text(
                 "Couldn't send. Tap to retry.",
-                style: const TextStyle(fontSize: 11.5, color: AppColors.danger),
+                style: TextStyle(fontSize: 11.5, color: AppColors.danger),
               ),
             )
           else if (showTime)

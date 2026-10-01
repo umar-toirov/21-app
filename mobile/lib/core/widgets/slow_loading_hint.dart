@@ -41,7 +41,7 @@ class _SlowLoadingHintState extends State<SlowLoadingHint> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: AppColors.orange),
+            const CircularProgressIndicator(color: AppColors.orange),
             if (widget.label != null) ...[
               const SizedBox(height: 18),
               Text(

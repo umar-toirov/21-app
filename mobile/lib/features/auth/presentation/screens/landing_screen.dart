@@ -28,29 +28,29 @@ class LandingScreen extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 480),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(28, 40, 28, 24),
-              children: [
-                const _Header(),
-                const SizedBox(height: 36),
-                const _Feature(
+              children: const [
+                _Header(),
+                SizedBox(height: 36),
+                _Feature(
                   icon: Icons.checklist_rounded,
                   color: AppColors.teal,
                   title: 'Daily tasks',
                   text: 'A short list each day. Tick it off and earn points.',
                 ),
-                const _Feature(
+                _Feature(
                   icon: Icons.local_fire_department_rounded,
                   color: AppColors.orange,
                   title: 'A streak to protect',
                   text: 'Show up every day for 21 days.',
                 ),
-                const _Feature(
+                _Feature(
                   icon: Icons.groups_rounded,
                   color: Color(0xFF3B82F6),
                   title: 'Groups and ranking',
                   text: 'Join friends, chat and climb the leaderboard.',
                 ),
-                const SizedBox(height: 28),
-                const Center(child: MadeByIlmHub()),
+                SizedBox(height: 28),
+                Center(child: MadeByIlmHub()),
               ],
             ),
           ),

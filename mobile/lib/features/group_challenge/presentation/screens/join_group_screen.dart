@@ -399,7 +399,7 @@ class _ReadOnlyTask extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.groups_rounded, size: 20, color: AppColors.goldDepth),
+          const Icon(Icons.groups_rounded, size: 20, color: AppColors.goldDepth),
           const SizedBox(width: 12),
           Expanded(
             child: Text(title, style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
